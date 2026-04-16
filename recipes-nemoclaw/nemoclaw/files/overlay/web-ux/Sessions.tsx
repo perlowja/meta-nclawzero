@@ -1,3 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jason Perlow. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026 ZeroClaw Labs (original ZeroClaw project, MIT license)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Sessions management page for nclawzero web UX.
+// Based on the ZeroClaw dashboard architecture (MIT licensed).
+// Modifications and additions by Jason Perlow are Apache-2.0 licensed.
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   MessageSquare, Trash2, RefreshCw, Search, Plus, ExternalLink,
@@ -232,7 +240,7 @@ export default function Sessions() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `zeroclaw-sessions-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `nclawzero-sessions-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
