@@ -16,13 +16,12 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 ZEROCLAW_VERSION = "0.6.9"
 
 SRC_URI = " \
-    https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/zeroclaw-v${ZEROCLAW_VERSION}-aarch64-unknown-linux-gnu.tar.gz;name=bin \
+    https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/zeroclaw-aarch64-unknown-linux-gnu.tar.gz;name=bin \
     file://zeroclaw.service \
     file://zeroclaw.toml \
 "
 
-# TODO: fill actual sha256 from release
-SRC_URI[bin.sha256sum] = "FIXME_REPLACE_WITH_ACTUAL_SHA256"
+SRC_URI[bin.sha256sum] = "25e5a50a2870cfab14a2767d66650b188ca0ccbb38d9e895dd09b6d7399d73f6"
 
 COMPATIBLE_HOST = "aarch64.*-linux"
 
