@@ -1,0 +1,32 @@
+[Unit]
+Description=NemoClaw Sandbox Framework
+After=network-online.target zeroclaw.service
+Wants=network-online.target
+Requires=zeroclaw.service
+
+[Service]
+Type=simple
+User=nemoclaw
+Group=nemoclaw
+WorkingDirectory=/opt/nemoclaw
+ExecStart=/usr/bin/node /opt/nemoclaw/bin/nemoclaw.js --config /etc/nemoclaw/nemoclaw.conf
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=256
+EnvironmentFile=-/etc/nemoclaw/env
+LimitNOFILE=65536
+LimitNPROC=512
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nemoclaw /opt/nemoclaw
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

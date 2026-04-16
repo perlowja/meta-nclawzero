@@ -1,0 +1,21 @@
+# ZeroClaw configuration for nclawzero embedded image
+# Optimized for low-memory ARM targets (Raspberry Pi 4, Jetson)
+
+[gateway]
+host = "[::]"
+port = 42617
+allow_public_bind = true
+
+[models]
+# Default provider — override via /etc/zeroclaw/env
+# ANTHROPIC_API_KEY, OPENAI_API_KEY, or NVIDIA_API_KEY
+
+[skills]
+allow_scripts = false
+workspace_dir = "/var/lib/zeroclaw/workspace"
+
+[agent]
+autonomy = "supervised"
+
+[logging]
+level = "info"

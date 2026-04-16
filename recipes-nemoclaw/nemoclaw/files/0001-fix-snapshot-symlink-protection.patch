@@ -1,0 +1,160 @@
+diff --git a/nemoclaw/src/blueprint/snapshot.test.ts b/nemoclaw/src/blueprint/snapshot.test.ts
+index 276af42..b27706a 100644
+--- a/nemoclaw/src/blueprint/snapshot.test.ts
++++ b/nemoclaw/src/blueprint/snapshot.test.ts
+@@ -8,7 +8,7 @@ const SNAP = "/snap/20260323";
+ // ── In-memory filesystem ────────────────────────────────────────
+ 
+ interface FsEntry {
+-  type: "file" | "dir";
++  type: "file" | "dir" | "symlink";
+   content?: string;
+ }
+ 
+@@ -33,6 +33,15 @@ vi.mock("node:fs", async (importOriginal) => {
+   return {
+     ...original,
+     existsSync: (p: string) => store.has(p),
++    lstatSync: (p: string) => {
++      const entry = store.get(p);
++      if (!entry) throw new Error(`ENOENT: ${p}`);
++      return {
++        isSymbolicLink: () => entry.type === "symlink",
++        isFile: () => entry.type === "file",
++        isDirectory: () => entry.type === "dir",
++      };
++    },
+     mkdirSync: vi.fn((p: string) => {
+       addDir(p);
+     }),
+@@ -85,6 +94,7 @@ vi.mock("node:fs", async (importOriginal) => {
+           name,
+           isDirectory: () => type === "dir",
+           isFile: () => type === "file",
++          isSymbolicLink: () => type === "symlink",
+         }));
+       }
+       return [...childTypes.keys()].sort();
+@@ -331,4 +341,37 @@ describe("snapshot", () => {
+       expect(listSnapshots()).toEqual([]);
+     });
+   });
++
++  // ── Security: symlink attack prevention ────────────────────────
++
++  describe("symlink attack prevention", () => {
++    it("createSnapshot rejects symlinked .openclaw directory", () => {
++      store.set(OPENCLAW_DIR, { type: "symlink" });
++      expect(() => createSnapshot()).toThrow(/symbolic link/);
++    });
++
++    it("rollback rejects symlinked snapshot source", () => {
++      store.set(`${SNAP}/openclaw`, { type: "symlink" });
++      expect(() => rollbackFromSnapshot(SNAP)).toThrow(/symbolic link/);
++    });
++
++    it("collectFiles skips symlinked entries inside directory tree", () => {
++      addDir(OPENCLAW_DIR);
++      addFile(`${OPENCLAW_DIR}/openclaw.json`, '{"version":"1"}');
++      // Symlink masquerading as a file inside the tree
++      store.set(`${OPENCLAW_DIR}/evil-link`, { type: "symlink" });
++
++      const result = createSnapshot();
++      expect(result).not.toBeNull();
++      if (!result) throw new Error("createSnapshot returned null");
++
++      const manifestPath = `${result}/snapshot.json`;
++      const entry = store.get(manifestPath);
++      if (!entry?.content) throw new Error("manifest not written");
++      const manifest = JSON.parse(entry.content);
++      // The symlink should NOT appear in the manifest
++      expect(manifest.contents).not.toContain("evil-link");
++      expect(manifest.file_count).toBe(1);
++    });
++  });
+ });
+diff --git a/nemoclaw/src/blueprint/snapshot.ts b/nemoclaw/src/blueprint/snapshot.ts
+index 4297983..43e7c0d 100644
+--- a/nemoclaw/src/blueprint/snapshot.ts
++++ b/nemoclaw/src/blueprint/snapshot.ts
+@@ -15,6 +15,7 @@ import type { Dirent } from "node:fs";
+ import {
+   cpSync,
+   existsSync,
++  lstatSync,
+   mkdirSync,
+   readdirSync,
+   readFileSync,
+@@ -22,7 +23,7 @@ import {
+   writeFileSync,
+ } from "node:fs";
+ import { homedir } from "node:os";
+-import { join, relative } from "node:path";
++import { join, relative, resolve } from "node:path";
+ 
+ import { execa } from "execa";
+ 
+@@ -39,13 +40,19 @@ function compactTimestamp(): string {
+ }
+ 
+ function collectFiles(dir: string): string[] {
++  const root = resolve(dir);
+   const files: string[] = [];
+   const walk = (current: string): void => {
+     for (const entry of readdirSync(current, { withFileTypes: true })) {
+       const full = join(current, entry.name);
++      // Security: skip symlinks to prevent traversal attacks (e.g., symlink → /etc/shadow)
++      if (entry.isSymbolicLink()) continue;
+       if (entry.isDirectory()) {
+         walk(full);
+       } else if (entry.isFile()) {
++        // Validate the resolved path stays within the root directory
++        const resolved = resolve(full);
++        if (!resolved.startsWith(root)) continue;
+         files.push(relative(dir, full));
+       }
+     }
+@@ -64,6 +71,8 @@ export function createSnapshot(): string | null {
+   mkdirSync(snapshotDir, { recursive: true });
+ 
+   const dest = join(snapshotDir, "openclaw");
++  // Security: verify source is a real directory, not a symlink pointing elsewhere
++  assertNotSymlink(OPENCLAW_DIR, "snapshot source");
+   cpSync(OPENCLAW_DIR, dest, { recursive: true });
+ 
+   const contents = collectFiles(dest);
+@@ -149,6 +158,10 @@ export function rollbackFromSnapshot(snapshotDir: string): boolean {
+     return false;
+   }
+ 
++  // Security: verify restore source is a real directory, not a symlink.
++  // Must be outside the try/catch so symlink attacks aren't silently swallowed.
++  assertNotSymlink(source, "rollback source");
++
+   const archivePath = existsSync(OPENCLAW_DIR)
+     ? join(HOME, `.openclaw.nemoclaw-archived.${compactTimestamp()}`)
+     : null;
+@@ -168,6 +181,23 @@ export function rollbackFromSnapshot(snapshotDir: string): boolean {
+   }
+ }
+ 
++/**
++ * Security: reject paths that are symlinks to prevent traversal attacks.
++ * A symlinked .openclaw directory could point to /etc or other sensitive paths,
++ * causing cpSync to copy arbitrary system files into snapshots.
++ */
++function assertNotSymlink(targetPath: string, label: string): void {
++  try {
++    const stat = lstatSync(targetPath);
++    if (stat.isSymbolicLink()) {
++      throw new Error(`${label} is a symbolic link — refusing to proceed for security`);
++    }
++  } catch (err) {
++    if (err instanceof Error && err.message.includes("symbolic link")) throw err;
++    // lstat failed for other reasons (e.g., path doesn't exist) — let the caller handle it
++  }
++}
++
+ // Named BlueprintSnapshotManifest to avoid collision with migration-state.ts SnapshotManifest
+ export interface BlueprintSnapshotManifest {
+   timestamp: string;

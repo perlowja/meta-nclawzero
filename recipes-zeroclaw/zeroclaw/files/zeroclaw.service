@@ -1,0 +1,29 @@
+[Unit]
+Description=ZeroClaw AI Agent Runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zeroclaw
+Group=zeroclaw
+WorkingDirectory=/var/lib/zeroclaw
+ExecStart=/usr/bin/zeroclaw daemon
+Restart=always
+RestartSec=5
+EnvironmentFile=-/etc/zeroclaw/env
+LimitNOFILE=65536
+LimitNPROC=512
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zeroclaw
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+# nclawzero Raspberry Pi 4 SD card partition layout
+#
+# boot: 100MB FAT32 (kernel, dtb, config.txt)
+# root: 2GB ext4 (system)
+# data: 1GB ext4 (zeroclaw workspace, skills, agent data)
+
+part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label boot --active --align 4096 --size 100
+part / --source rootfs --ondisk mmcblk0 --fstype=ext4 --label root --align 4096 --size 2048
+part /data --ondisk mmcblk0 --fstype=ext4 --label data --align 4096 --size 1024
