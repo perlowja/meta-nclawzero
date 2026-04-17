@@ -57,3 +57,6 @@ FILES:${PN} = " \
 "
 
 CONFFILES:${PN} = "${sysconfdir}/zeroclaw/zeroclaw.toml"
+
+# Pre-built binary is already stripped by upstream release process
+INSANE_SKIP:${PN} = "already-stripped"
