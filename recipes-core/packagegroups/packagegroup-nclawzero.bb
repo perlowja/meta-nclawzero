@@ -6,12 +6,13 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Phase 1+2: Base OS + ZeroClaw binary + runtime deps
-# Phase 3: Add nemoclaw once patches are validated against current upstream
+# Phase 3: Full nclawzero stack — ZeroClaw + Node.js + Python + base OS
 RDEPENDS:${PN} = " \
     zeroclaw-bin \
+    nodejs-bin \
     ca-certificates \
     curl \
+    git \
     openssh-sftp-server \
     openssh-sshd \
     openssh-ssh \
@@ -20,4 +21,5 @@ RDEPENDS:${PN} = " \
     nano \
     less \
     python3 \
+    python3-pip \
 "
