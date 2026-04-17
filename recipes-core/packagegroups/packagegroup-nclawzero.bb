@@ -6,7 +6,7 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Phase 3: Full nclawzero stack — ZeroClaw + Node.js + Python + base OS
+# Base: shared across both image variants
 RDEPENDS:${PN} = " \
     zeroclaw-bin \
     nodejs-bin \
@@ -22,4 +22,5 @@ RDEPENDS:${PN} = " \
     less \
     python3 \
     python3-pip \
+    nemoclaw-firstboot \
 "

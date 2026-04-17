@@ -1,0 +1,14 @@
+[Unit]
+Description=NemoClaw First-Boot Provisioning
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/nemoclaw/.provisioned
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nemoclaw-firstboot.sh
+RemainAfterExit=yes
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target
