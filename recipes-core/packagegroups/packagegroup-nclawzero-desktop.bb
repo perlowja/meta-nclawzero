@@ -17,5 +17,6 @@ RDEPENDS:${PN} = " \
     xterm \
     mesa \
     liberation-fonts \
+    adwaita-icon-theme \
     bash \
 "
