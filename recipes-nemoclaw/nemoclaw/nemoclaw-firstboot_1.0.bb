@@ -11,10 +11,15 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7ca
 SRC_URI = " \
     file://nemoclaw-firstboot.sh \
     file://nemoclaw-firstboot.service \
-    file://0001-fix-snapshot-symlink-protection.patch \
-    file://0002-fix-config-file-permissions.patch \
-    file://0003-feat-agent-defs-zeroclaw.patch \
     file://nemoclaw.conf \
+"
+
+# Patches are shipped in the image for first-boot application, not applied at build time.
+# They're installed to /etc/nemoclaw/patches/ by do_install.
+PATCHFILES = " \
+    0001-fix-snapshot-symlink-protection.patch \
+    0002-fix-config-file-permissions.patch \
+    0003-feat-agent-defs-zeroclaw.patch \
 "
 
 inherit systemd
@@ -33,10 +38,12 @@ do_install() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/nemoclaw-firstboot.service ${D}${systemd_system_unitdir}/
 
-    # Patches for first-boot apply
+    # Patches shipped for first-boot apply (not build-time)
     install -d ${D}${sysconfdir}/nemoclaw/patches
-    for p in ${WORKDIR}/0*.patch; do
-        [ -f "$p" ] && install -m 0644 "$p" ${D}${sysconfdir}/nemoclaw/patches/
+    for p in ${PATCHFILES}; do
+        if [ -f "${THISDIR}/files/$p" ]; then
+            install -m 0644 "${THISDIR}/files/$p" ${D}${sysconfdir}/nemoclaw/patches/
+        fi
     done
 
     # Config
