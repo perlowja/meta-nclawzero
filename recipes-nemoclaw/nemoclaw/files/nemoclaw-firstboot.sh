@@ -40,7 +40,18 @@ if [ -d "nemoclaw" ]; then
     cd ..
 fi
 
+# Install Claude Code CLI
+echo "Installing Claude Code..." >> "$LOGFILE"
+npm install -g @anthropic-ai/claude-code >> "$LOGFILE" 2>&1 || echo "WARN: Claude Code install failed" >> "$LOGFILE"
+
+# Verify Claude Code
+if command -v claude &>/dev/null; then
+    echo "Claude Code: $(claude --version 2>/dev/null | head -1)" >> "$LOGFILE"
+else
+    echo "WARN: Claude Code not in PATH after install" >> "$LOGFILE"
+fi
+
 # Mark provisioned
 mkdir -p /var/lib/nemoclaw
 touch "$MARKER"
-echo "=== NemoClaw provisioning complete: $(date) ===" >> "$LOGFILE"
+echo "=== NemoClaw + Claude Code provisioning complete: $(date) ===" >> "$LOGFILE"
