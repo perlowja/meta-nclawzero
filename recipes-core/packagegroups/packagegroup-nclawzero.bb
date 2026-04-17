@@ -6,15 +6,18 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
+# Phase 1: Base OS + runtime deps (no zeroclaw/nemoclaw yet — those need recipe fixes)
+# Phase 2: Add zeroclaw-bin once SHA256 is verified
+# Phase 3: Add nemoclaw once patches are validated against current upstream
 RDEPENDS:${PN} = " \
-    zeroclaw-bin \
-    nemoclaw \
-    nodejs \
     ca-certificates \
     curl \
-    openssh-server \
-    openssh-client \
+    openssh-sftp-server \
+    openssh-sshd \
+    openssh-ssh \
+    openssh-scp \
     htop \
     nano \
     less \
+    python3 \
 "
