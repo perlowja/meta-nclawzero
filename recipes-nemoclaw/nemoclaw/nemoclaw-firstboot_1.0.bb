@@ -27,7 +27,7 @@ inherit systemd
 SYSTEMD_SERVICE:${PN} = "nemoclaw-firstboot.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
-RDEPENDS:${PN} = "nodejs-bin git"
+RDEPENDS:${PN} = "nodejs-bin git bash"
 
 do_install() {
     # Provisioning script
