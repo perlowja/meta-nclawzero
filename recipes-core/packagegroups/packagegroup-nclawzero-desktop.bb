@@ -10,13 +10,10 @@ LICENSE = "MIT"
 inherit packagegroup
 
 RDEPENDS:${PN} = " \
-    xserver-xorg \
-    xf86-video-fbdev \
-    openbox \
-    tigervnc \
-    xterm \
+    weston \
+    weston-init \
+    wayland-utils \
     mesa \
     liberation-fonts \
-    adwaita-icon-theme \
     bash \
 "
