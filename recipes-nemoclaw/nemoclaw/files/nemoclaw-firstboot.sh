@@ -26,6 +26,11 @@ for patch in /etc/nemoclaw/patches/*.patch; do
     git apply "$patch" >> "$LOGFILE" 2>&1 || echo "WARN: patch failed: $patch" >> "$LOGFILE"
 done
 
+# Install uv (lightweight Python package manager)
+echo "Installing uv..." >> "$LOGFILE"
+curl -LsSf https://astral.sh/uv/install.sh | sh >> "$LOGFILE" 2>&1
+export PATH="$HOME/.local/bin:$PATH"
+
 # Install npm deps
 echo "Installing npm dependencies..." >> "$LOGFILE"
 cd /opt/nemoclaw
