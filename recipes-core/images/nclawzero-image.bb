@@ -36,7 +36,7 @@ IMAGE_INSTALL = " \
 IMAGE_LINGUAS = ""
 
 # systemd as init manager
-DISTRO_FEATURES:append = " systemd virtualization"
+DISTRO_FEATURES:append = " systemd"
 DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
 VIRTUAL-RUNTIME_init_manager = "systemd"
 VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
@@ -56,6 +56,5 @@ inherit extrausers
 EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
     useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
-    useradd -m -s /bin/bash -G sudo pi; \
-    usermod -p '\$6\$nclawzero\$eHgQYb4uuKNHMlaNzR.Y1Ot0iNmy2PYgTDVLoVzOOF2NZZnLu40cAoQlABPeSU14nWb6OWjzOQBGOT9QEkOO20' pi; \
+    useradd -m -s /bin/bash -G sudo -p '!' pi; \
 "

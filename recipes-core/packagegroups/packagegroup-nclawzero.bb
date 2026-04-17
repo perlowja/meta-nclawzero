@@ -7,7 +7,6 @@ LICENSE = "MIT"
 inherit packagegroup
 
 # Shared across both image variants.
-# Organized by purpose for readability.
 RDEPENDS:${PN} = " \
     zeroclaw-bin \
     zeroclaw-env \

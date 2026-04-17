@@ -1,0 +1,16 @@
+[Unit]
+Description=nclawzero first-boot RDP/TLS setup
+DefaultDependencies=yes
+After=local-fs.target
+Before=weston.service weston.socket
+ConditionPathExists=!/var/lib/nclawzero/rdp-init.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nclawzero-rdp-init
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

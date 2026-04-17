@@ -1,22 +1,31 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 Jason Perlow. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# nclawzero-image-desktop — headless agent + VNC desktop for Claude Code.
-# For 4GB+ RAM devices (clawpi). Access via VNC client on port 5901.
+# nclawzero-image-desktop — nclawzero with Weston + RDP remote desktop
 #
-# NOT for the 2GB zeropi — use nclawzero-image (headless) for that.
+# Superset of nclawzero-image adding:
+#   - Weston Wayland compositor (rdp backend)
+#   - Self-signed TLS cert generated on first boot
+#   - Accessible via Windows App / Microsoft Remote Desktop on port 3389
+#
+# Targets: Raspberry Pi 4 (8GB recommended for desktop), Jetson Orin Nano
+# Flash:   bmaptool copy nclawzero-image-desktop-*.wic.gz /dev/sdX
 
-require nclawzero-image.bb
+require recipes-core/images/nclawzero-image.bb
 
-SUMMARY = "nclawzero desktop image — Weston VNC + Claude Code demo box"
+SUMMARY = "nclawzero desktop image (Weston + RDP)"
+DESCRIPTION = "nclawzero headless base plus Weston Wayland compositor \
+    with RDP backend for remote desktop access via Windows App / \
+    Microsoft Remote Desktop client."
 
-IMAGE_INSTALL:append = " \
+IMAGE_INSTALL += " \
     packagegroup-nclawzero-desktop \
 "
 
-# Wayland for Weston compositor with built-in VNC backend
+# Desktop needs wayland DISTRO_FEATURE — undo headless parent's remove.
+# local.conf in build-rpi-desktop/ must also not remove wayland.
+DISTRO_FEATURES:remove = "x11 vulkan"
 DISTRO_FEATURES:append = " wayland opengl"
-DISTRO_FEATURES:remove = "x11"
 
-# Larger rootfs for desktop packages
+# Extra space for Weston + fonts + cert storage
 IMAGE_ROOTFS_EXTRA_SPACE = "1048576"
