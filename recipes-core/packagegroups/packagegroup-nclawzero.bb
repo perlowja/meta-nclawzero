@@ -6,10 +6,10 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Phase 1: Base OS + runtime deps (no zeroclaw/nemoclaw yet — those need recipe fixes)
-# Phase 2: Add zeroclaw-bin once SHA256 is verified
+# Phase 1+2: Base OS + ZeroClaw binary + runtime deps
 # Phase 3: Add nemoclaw once patches are validated against current upstream
 RDEPENDS:${PN} = " \
+    zeroclaw-bin \
     ca-certificates \
     curl \
     openssh-sftp-server \
