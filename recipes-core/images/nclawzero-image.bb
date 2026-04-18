@@ -57,5 +57,5 @@ EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
     useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
     useradd -m -s /bin/bash -G sudo pi; \
-    usermod -p '\$6\$nclawzero\$FIXME_HASHED_PASSWORD' pi; \
+    usermod -p '\$6\$nclawzero\$eHgQYb4uuKNHMlaNzR.Y1Ot0iNmy2PYgTDVLoVzOOF2NZZnLu40cAoQlABPeSU14nWb6OWjzOQBGOT9QEkOO20' pi; \
 "
