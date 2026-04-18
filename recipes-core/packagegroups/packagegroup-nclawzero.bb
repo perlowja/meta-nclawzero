@@ -26,56 +26,55 @@ RDEPENDS:${PN} = " \
 # Per-skill container sandbox runtime (ZeroClaw spawns ephemeral alpine
 # containers per skill-tool execution — see crates/zeroclaw-runtime/src/
 # security/docker.rs in zeroclaw upstream).
-RDEPENDS:${PN} += \" \\
-    docker-ce \\
-    docker-ce-cli \\
-    containerd-opencontainers \\
-\"
+RDEPENDS:${PN} += " \
+    docker-moby \
+    containerd-opencontainers \
+"
 
 # AI/agent plumbing — JSON, git, session mgmt, local state, Python SDKs
-RDEPENDS:${PN} += \" \\
-    jq \\
-    git \\
-    rsync \\
-    tmux \\
-    vim \\
-    nano \\
-    less \\
-    sqlite3 \\
-    python3 \\
-    python3-pip \\
-    python3-virtualenv \\
-\"
+RDEPENDS:${PN} += " \
+    jq \
+    git \
+    rsync \
+    tmux \
+    vim \
+    nano \
+    less \
+    sqlite3 \
+    python3 \
+    python3-pip \
+    python3-virtualenv \
+"
 
 # Process / system monitoring
-RDEPENDS:${PN} += \" \\
-    htop \\
-    iotop \\
-    iftop \\
-    mtr \\
-    lsof \\
-    strace \\
-    sysstat \\
-\"
+RDEPENDS:${PN} += " \
+    htop \
+    iotop \
+    iftop \
+    mtr \
+    lsof \
+    strace \
+    sysstat \
+"
 
 # Network diagnostics + MQTT client (inference event buses)
-RDEPENDS:${PN} += \" \\
-    netcat-openbsd \\
-    socat \\
-    nmap \\
-    tcpdump \\
-    bind-utils \\
-    iperf3 \\
-    mosquitto-clients \\
-\"
+RDEPENDS:${PN} += " \
+    netcat-openbsd \
+    socat \
+    nmap \
+    tcpdump \
+    bind-utils \
+    iperf3 \
+    mosquitto-clients \
+"
 
 # File / disk
-RDEPENDS:${PN} += \" \\
-    mc \\
-    tree \\
-    pv \\
-    file \\
-\"
+RDEPENDS:${PN} += " \
+    mc \
+    tree \
+    pv \
+    file \
+"
 
 # TODO — not in poky/meta-oe/meta-python scarthgap; need extra layers or custom recipes:
 #   Rust tools (need meta-rust-bin or custom cargo recipes):
