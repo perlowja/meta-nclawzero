@@ -1,19 +1,63 @@
 # ZeroClaw configuration for nclawzero embedded image
-# Optimized for low-memory ARM targets (Raspberry Pi 4, Jetson)
+# Optimized for low-memory ARM targets (Raspberry Pi 4, Jetson Orin Nano)
 
 [gateway]
 host = "[::]"
 port = 42617
 allow_public_bind = true
 
-[models]
-# Default provider — override via /etc/zeroclaw/env
-# ANTHROPIC_API_KEY, OPENAI_API_KEY, or NVIDIA_API_KEY
+# --- Models -----------------------------------------------------------
+# Primary narrative model — MiniMax-M2.7 via Together AI.
+# Selected per InvestorClaw V7.x test harness (QC4=108). See MODELS.md in
+# the InvestorClaw repo for full benchmark data.
 
+[models]
+default_provider = "together"
+default_model = "MiniMaxAI/MiniMax-M2.7"
+default_temperature = 0.7
+
+# API keys read from /etc/zeroclaw/env at daemon start. Only TOGETHER_API_KEY
+# is required for the default two-cloud-LLM config.
+
+[provider.together]
+base_url = "https://api.together.xyz/v1"
+api_key = "zeroclaw:resolve:env:TOGETHER_API_KEY"
+
+# Consultative tier — Gemma 4 via Together (same provider, same key).
+# Open-weight model; portable to local GPU inference when available.
+[provider.together_consultative]
+base_url = "https://api.together.xyz/v1"
+api_key = "zeroclaw:resolve:env:TOGETHER_API_KEY"
+default_model = "google/gemma-4-e4b-it"
+
+# Optional alternate consultative endpoints — uncomment + populate env vars.
+# [provider.google_vertex]
+# base_url = "https://us-central1-aiplatform.googleapis.com/v1"
+# api_key = "zeroclaw:resolve:env:GOOGLE_VERTEX_API_KEY"
+#
+# [provider.google_ai_studio]
+# base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+# api_key = "zeroclaw:resolve:env:GOOGLE_AI_STUDIO_API_KEY"
+
+# --- Skills -----------------------------------------------------------
 [skills]
 allow_scripts = false
 workspace_dir = "/var/lib/zeroclaw/workspace"
 
+# --- Per-skill sandbox (Docker + Alpine) ------------------------------
+# Explicit backend config. Per ZeroClaw upstream #5719: sandbox.backend
+# and runtime.kind are orthogonal. With allow_scripts=false this path is
+# not exercised in the default profile, but the configuration is set so
+# enabling scripts later produces the intended isolation behavior.
+[security.sandbox]
+backend = "docker"
+image = "alpine:latest"
+memory_limit_mb = 128
+network = "none"
+read_only_rootfs = true
+timeout_seconds = 60
+
+# --- Agent ------------------------------------------------------------
 [agent]
 autonomy = "supervised"
 

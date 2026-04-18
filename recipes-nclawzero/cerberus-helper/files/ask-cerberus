@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# ask-cerberus — thin wrapper around a local vLLM-style OpenAI-compatible
+# inference endpoint. Idempotent, config-driven, no credentials required.
+#
+# Usage:
+#   ask-cerberus "your prompt here"
+#   echo "prompt from stdin" | ask-cerberus
+
+set -eu
+
+CONF=/etc/nclawzero/cerberus.conf
+[ -r "$CONF" ] && . "$CONF"
+
+: "${CERBERUS_ENDPOINT:=http://192.168.207.96:8000}"
+: "${CERBERUS_MODEL:=mistral-7b}"
+: "${CERBERUS_TIMEOUT:=60}"
+
+if [ "$#" -gt 0 ]; then
+    PROMPT="$*"
+else
+    PROMPT="$(cat)"
+fi
+
+# Escape prompt for JSON — basic, handles quotes and newlines.
+ESCAPED=$(printf "%s" "$PROMPT" | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
+
+curl -fsS --max-time "$CERBERUS_TIMEOUT" \
+    -X POST "$CERBERUS_ENDPOINT/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$CERBERUS_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":$ESCAPED}]}" \
+    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[\"choices\"][0][\"message\"][\"content\"])"

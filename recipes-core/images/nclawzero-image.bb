@@ -36,7 +36,7 @@ IMAGE_INSTALL = " \
 IMAGE_LINGUAS = ""
 
 # systemd as init manager
-DISTRO_FEATURES:append = " systemd"
+DISTRO_FEATURES:append = " systemd virtualization"
 DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
 VIRTUAL-RUNTIME_init_manager = "systemd"
 VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
