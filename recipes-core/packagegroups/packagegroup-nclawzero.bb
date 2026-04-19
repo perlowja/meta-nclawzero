@@ -14,6 +14,7 @@ RDEPENDS:${PN} = " \
     nodejs-bin \
     nemoclaw-firstboot \
     nemoclaw-core \
+    nclawzero-rdp-init \
     ca-certificates \
     openssh-sftp-server \
     openssh-sshd \

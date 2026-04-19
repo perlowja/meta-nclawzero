@@ -12,7 +12,6 @@ RDEPENDS:${PN} = " \
     weston-init \
     weston-examples \
     kbd \
-    nclawzero-rdp-init \
     openssl-bin \
     shadow \
 "
