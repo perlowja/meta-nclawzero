@@ -21,7 +21,7 @@ DESCRIPTION = "NemoClaw CLI + plugin + blueprint tree, vendored from upstream \
     for offline-capable first-boot provisioning. Patches applied at build time."
 HOMEPAGE = "https://github.com/NVIDIA/NemoClaw"
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=1f293dba04bfaa7b92e9480eed656511"
 
 # Pin to upstream main HEAD at Yocto build time.
 # First-boot will git fetch origin when online; this is the offline fallback.

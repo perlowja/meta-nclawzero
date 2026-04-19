@@ -17,7 +17,7 @@ DESCRIPTION = "CPU-first LLM inference engine supporting GGUF-format models. \
     skills and by ZeroClaw's [provider.local] routing."
 HOMEPAGE = "https://github.com/ggml-org/llama.cpp"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=0ee2e59a1d48dbca63ecf98a63612247"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=223b26b3c1143120c87e2b13111d3e99"
 
 SRCREV = "9e5647affa54ea724196db15ec9b76c4abd16d4a"
 # Upstream tag: b8840 (2026-04-18)
@@ -39,8 +39,8 @@ EXTRA_OECMAKE = " \
     -DGGML_METAL=OFF \
     -DGGML_VULKAN=OFF \
     -DLLAMA_CURL=OFF \
-    -DLLAMA_BUILD_EXAMPLES=ON \
-    -DLLAMA_BUILD_SERVER=ON \
+    -DLLAMA_BUILD_EXAMPLES=OFF \
+    -DLLAMA_BUILD_SERVER=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
 "
 
