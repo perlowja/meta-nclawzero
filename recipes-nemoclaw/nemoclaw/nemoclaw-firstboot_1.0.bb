@@ -15,9 +15,9 @@ SRC_URI = " \
     file://nemoclaw-firstboot.sh \
     file://nemoclaw-firstboot.service \
     file://nemoclaw.conf \
-    file://0001-fix-snapshot-symlink-protection.patch \
-    file://0002-fix-config-file-permissions.patch \
-    file://0003-feat-agent-defs-zeroclaw.patch \
+    file://0001-fix-snapshot-symlink-protection.patch;apply=no \
+    file://0002-fix-config-file-permissions.patch;apply=no \
+    file://0003-feat-agent-defs-zeroclaw.patch;apply=no \
 "
 
 PATCHFILES = " \
