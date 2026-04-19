@@ -54,7 +54,7 @@ RDEPENDS:${PN} += " \
 
 # Process / system monitoring
 RDEPENDS:${PN} += " \
-    zram-tools \
+    zram \
     htop \
     iotop \
     iftop \

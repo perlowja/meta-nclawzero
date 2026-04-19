@@ -28,12 +28,12 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 SRCREV = "4e6508d0cbba95c04112421dd321dbc34188a3a5"
 PV = "0.1+git${SRCPV}"
 
-SRC_URI = " \
-    git://github.com/NVIDIA/NemoClaw.git;branch=main;protocol=https \
-    file://0001-fix-snapshot-symlink-protection.patch \
-    file://0002-fix-config-file-permissions.patch \
-    file://0003-feat-agent-defs-zeroclaw.patch \
-"
+SRC_URI = "git://github.com/NVIDIA/NemoClaw.git;branch=main;protocol=https"
+
+# Patches are NOT applied at Yocto build time — they drift against fast-moving
+# upstream context lines and cause fragile builds. Instead, the patches ship
+# as data files via nemoclaw-firstboot, and are applied at first boot with
+# graceful fallback if a hunk fails to apply. See nemoclaw-firstboot.sh.
 
 S = "${WORKDIR}/git"
 

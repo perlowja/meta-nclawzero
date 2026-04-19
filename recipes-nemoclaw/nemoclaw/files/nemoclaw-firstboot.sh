@@ -42,6 +42,24 @@ fi
 
 cd "$NEMOCLAW_DIR"
 
+# --- 1b. Apply nclawzero patches (graceful — fuzz-tolerant, continues on failure) ---
+if [ -d /etc/nemoclaw/patches ]; then
+    echo "Applying nclawzero patches..." >> "$LOGFILE"
+    for patch in /etc/nemoclaw/patches/*.patch; do
+        [ -f "$patch" ] || continue
+        name=$(basename "$patch")
+        # Use --forward so already-applied patches are silently skipped;
+        # --fuzz=3 tolerates small context drift.
+        if git apply --check --3way "$patch" >/dev/null 2>&1; then
+            git apply --3way "$patch" >> "$LOGFILE" 2>&1 &&                 echo "  applied $name" >> "$LOGFILE" ||                 echo "  WARN: 3way apply of $name failed — continuing" >> "$LOGFILE"
+        elif patch -p1 -N --fuzz=3 --dry-run < "$patch" >/dev/null 2>&1; then
+            patch -p1 -N --fuzz=3 < "$patch" >> "$LOGFILE" 2>&1 &&                 echo "  applied $name (with fuzz)" >> "$LOGFILE" ||                 echo "  WARN: fuzzed apply of $name failed — continuing" >> "$LOGFILE"
+        else
+            echo "  SKIP: $name does not apply to upstream HEAD (drift); continuing" >> "$LOGFILE"
+        fi
+    done
+fi
+
 # --- 2. Install uv (used by blueprint Python scripts) ----------------
 echo "Installing uv..." >> "$LOGFILE"
 if ! command -v uv >/dev/null 2>&1; then

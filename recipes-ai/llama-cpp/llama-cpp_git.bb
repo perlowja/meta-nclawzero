@@ -29,7 +29,6 @@ S = "${WORKDIR}/git"
 
 inherit cmake
 
-DEPENDS = "openblas"
 
 EXTRA_OECMAKE = " \
     -DCMAKE_BUILD_TYPE=Release \

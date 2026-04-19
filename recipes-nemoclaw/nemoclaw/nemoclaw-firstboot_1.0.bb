@@ -15,6 +15,15 @@ SRC_URI = " \
     file://nemoclaw-firstboot.sh \
     file://nemoclaw-firstboot.service \
     file://nemoclaw.conf \
+    file://0001-fix-snapshot-symlink-protection.patch \
+    file://0002-fix-config-file-permissions.patch \
+    file://0003-feat-agent-defs-zeroclaw.patch \
+"
+
+PATCHFILES = " \
+    0001-fix-snapshot-symlink-protection.patch \
+    0002-fix-config-file-permissions.patch \
+    0003-feat-agent-defs-zeroclaw.patch \
 "
 
 inherit systemd
@@ -36,6 +45,14 @@ do_install() {
     # Config
     install -d ${D}${sysconfdir}/nemoclaw
     install -m 0600 ${WORKDIR}/nemoclaw.conf ${D}${sysconfdir}/nemoclaw/
+
+    # Patches shipped for runtime apply by nemoclaw-firstboot.sh.
+    # Applied with graceful failure — a hunk that does not apply against
+    # upstream drift is logged but does not block provisioning.
+    install -d ${D}${sysconfdir}/nemoclaw/patches
+    for p in ${PATCHFILES}; do
+        install -m 0644 ${WORKDIR}/$p ${D}${sysconfdir}/nemoclaw/patches/
+    done
 
     # Data dir
     install -d ${D}/var/lib/nemoclaw
