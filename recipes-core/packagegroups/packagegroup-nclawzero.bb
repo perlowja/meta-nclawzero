@@ -19,6 +19,7 @@ RDEPENDS:${PN} = " \
     openssh-sshd \
     openssh-ssh \
     openssh-scp \
+    tailscale \
     curl \
     wget \
     bash-completion \
@@ -36,6 +37,9 @@ RDEPENDS:${PN} += " \
 RDEPENDS:${PN} += " \
     jq \
     git \
+    bat \
+    fd \
+    starship \
     rsync \
     tmux \
     vim \
@@ -49,6 +53,7 @@ RDEPENDS:${PN} += " \
 
 # Process / system monitoring
 RDEPENDS:${PN} += " \
+    zram-tools \
     htop \
     iotop \
     iftop \
