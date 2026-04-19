@@ -3,17 +3,22 @@
 #
 # ZeroClaw — pre-built Rust AI agent runtime binary
 #
-# Fetches the official aarch64 release binary from GitHub Releases.
-# SHA256 verified. No Rust toolchain needed at build time.
+# Fetches the official aarch64 release binary + bundled web dashboard from
+# GitHub Releases. SHA256 verified. No Rust toolchain needed at build time.
+#
+# Tracking the latest tagged beta from master (0.7.3) because the schema
+# improvements on this track — first-class [runtime] section + clean
+# SandboxBackend enum — are what nclawzero's zeroclaw.toml depends on.
+# Upgrade to stable 1.0 once released.
 
-SUMMARY = "ZeroClaw AI agent runtime (pre-built binary)"
+SUMMARY = "ZeroClaw AI agent runtime (pre-built binary + web dashboard)"
 DESCRIPTION = "Rust-based AI agent runtime with low memory footprint. \
-    Runs at ~17MB RSS on Raspberry Pi 4. OpenAI-compatible API on port 42617."
+    Runs at ~22MB RSS on Raspberry Pi 4. OpenAI-compatible API + Web UI on port 42617."
 HOMEPAGE = "https://github.com/zeroclaw-labs/zeroclaw"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-ZEROCLAW_VERSION = "0.6.9"
+ZEROCLAW_VERSION = "0.7.3-beta.1051"
 
 SRC_URI = " \
     https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/zeroclaw-aarch64-unknown-linux-gnu.tar.gz;name=bin \
@@ -21,7 +26,7 @@ SRC_URI = " \
     file://zeroclaw.toml \
 "
 
-SRC_URI[bin.sha256sum] = "25e5a50a2870cfab14a2767d66650b188ca0ccbb38d9e895dd09b6d7399d73f6"
+SRC_URI[bin.sha256sum] = "2eb7fa9699e3e6064f7c882aa67f4f5fadc4002e1cdc588d924395d344e3bb3c"
 
 COMPATIBLE_HOST = "aarch64.*-linux"
 
@@ -34,6 +39,11 @@ do_install() {
     # Binary
     install -d ${D}${bindir}
     install -m 0755 ${WORKDIR}/zeroclaw ${D}${bindir}/zeroclaw
+
+    # Web dashboard (bundled in the release tarball since 0.7.x)
+    install -d ${D}${datadir}/zeroclaw
+    cp -r ${WORKDIR}/web/dist ${D}${datadir}/zeroclaw/web-dist
+    chmod -R a+rX ${D}${datadir}/zeroclaw/web-dist
 
     # Configuration
     install -d ${D}${sysconfdir}/zeroclaw
@@ -51,6 +61,7 @@ do_install() {
 
 FILES:${PN} = " \
     ${bindir}/zeroclaw \
+    ${datadir}/zeroclaw \
     ${sysconfdir}/zeroclaw \
     /var/lib/zeroclaw \
     ${systemd_system_unitdir}/zeroclaw.service \
