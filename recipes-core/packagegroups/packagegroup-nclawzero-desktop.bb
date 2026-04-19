@@ -47,3 +47,21 @@ RDEPENDS:${PN} += " \
 # builds not in scarthgap layers: pcmanfm (file manager), featherpad,
 # mousepad, gedit (text editors), mesa-demos (GL debug).
 # For now: use vim/nano in weston-terminal; no file manager GUI.
+
+# --- Browser ----------------------------------------------------------
+# Chromium with the Ozone/Wayland backend (matches our Weston compositor).
+# Requires the meta-browser layer registered in bblayers.conf:
+#   cd /mnt/argonas/nclawzero-yocto
+#   git clone -b scarthgap https://github.com/OSSystems/meta-browser
+#   bitbake-layers add-layer meta-browser/meta-chromium
+#
+# May also need in local.conf:
+#   LICENSE_FLAGS_ACCEPTED:append = " commercial"
+# (for proprietary codecs like H.264; skip if you're fine with web-safe only)
+#
+# Expect a ~4-8 hour build on ARGOS for the first compile; sstate-cached
+# afterwards. This is the single biggest contributor to build time in the
+# whole image.
+RDEPENDS:${PN} += " \
+    chromium-ozone-wayland \
+"
