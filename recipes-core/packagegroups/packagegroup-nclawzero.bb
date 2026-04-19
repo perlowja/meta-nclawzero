@@ -49,7 +49,6 @@ RDEPENDS:${PN} += " \
     python3 \
     python3-pip \
     python3-virtualenv \
-    llama-cpp \
 "
 
 # Process / system monitoring

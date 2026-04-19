@@ -45,14 +45,23 @@ do_install() {
     install -d ${D}/opt/nemoclaw
     # Copy source tree + .git so first-boot can `git fetch` against upstream.
     cp -a ${S}/. ${D}/opt/nemoclaw/
-    # Make sure the tree is owned by root; the firstrun.sh later chowns
-    # the data dir separately.
+
+    # Strip files that would pull in unnecessary runtime deps via Yocto's
+    # file-rdeps QA check:
+    #   - .git/hooks/*.sample needs perl (~15MB of dep weight for hook templates
+    #     that git works fine without)
+    #   - test/ needs bash for .sh scripts; unit tests arent part of the
+    #     agent runtime. Removed; operators can git-clone the full tree
+    #     separately if they want to run the harness.
+    rm -rf ${D}/opt/nemoclaw/.git/hooks/*.sample
+    rm -rf ${D}/opt/nemoclaw/test
+
     chown -R root:root ${D}/opt/nemoclaw
     chmod -R u+rwX,go+rX,go-w ${D}/opt/nemoclaw
 }
 
 FILES:${PN} = "/opt/nemoclaw"
 
-RDEPENDS:${PN} = "git"
+RDEPENDS:${PN} = "git bash"
 # node_modules are materialised at first boot by nemoclaw-firstboot, so
 # the recipe itself does not depend on nodejs-bin at install time.
