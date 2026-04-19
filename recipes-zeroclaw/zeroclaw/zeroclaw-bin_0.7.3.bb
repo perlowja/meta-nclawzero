@@ -71,3 +71,13 @@ CONFFILES:${PN} = "${sysconfdir}/zeroclaw/zeroclaw.toml"
 
 # Pre-built binary is already stripped by upstream release process
 INSANE_SKIP:${PN} = "already-stripped"
+
+# Fix ownership on first-boot so the zeroclaw user (created via rootfs
+# postprocess useradd) can read its config and write its state dir.
+# pkg_postinst_ontarget runs on first boot via run-postinsts.service,
+# which is ordered before multi-user.target (zeroclaw.service).
+pkg_postinst_ontarget:${PN}() {
+    chown -R zeroclaw:zeroclaw /var/lib/zeroclaw || true
+    chown zeroclaw:zeroclaw /etc/zeroclaw/zeroclaw.toml || true
+    chmod 0600 /etc/zeroclaw/zeroclaw.toml || true
+}
