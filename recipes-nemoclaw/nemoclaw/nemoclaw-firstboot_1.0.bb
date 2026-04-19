@@ -1,8 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 Jason Perlow. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# NemoClaw first-boot provisioning — clones and installs NemoClaw on first boot.
-# Approach A: lightweight image, provisions from network on first boot.
+# NemoClaw first-boot provisioner — materialises node_modules + Claude Code
+# on top of the pre-cloned source tree that the nemoclaw-core recipe ships.
+#
+# Patches are now applied at Yocto build time via nemoclaw-core's SRC_URI,
+# not at runtime.
 
 SUMMARY = "NemoClaw first-boot provisioner"
 LICENSE = "Apache-2.0"
@@ -14,20 +17,12 @@ SRC_URI = " \
     file://nemoclaw.conf \
 "
 
-# Patches are shipped in the image for first-boot application, not applied at build time.
-# They're installed to /etc/nemoclaw/patches/ by do_install.
-PATCHFILES = " \
-    0001-fix-snapshot-symlink-protection.patch \
-    0002-fix-config-file-permissions.patch \
-    0003-feat-agent-defs-zeroclaw.patch \
-"
-
 inherit systemd
 
 SYSTEMD_SERVICE:${PN} = "nemoclaw-firstboot.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
-RDEPENDS:${PN} = "nodejs-bin git bash"
+RDEPENDS:${PN} = "nemoclaw-core nodejs-bin git bash"
 
 do_install() {
     # Provisioning script
@@ -37,14 +32,6 @@ do_install() {
     # Systemd service
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/nemoclaw-firstboot.service ${D}${systemd_system_unitdir}/
-
-    # Patches shipped for first-boot apply (not build-time)
-    install -d ${D}${sysconfdir}/nemoclaw/patches
-    for p in ${PATCHFILES}; do
-        if [ -f "${THISDIR}/files/$p" ]; then
-            install -m 0644 "${THISDIR}/files/$p" ${D}${sysconfdir}/nemoclaw/patches/
-        fi
-    done
 
     # Config
     install -d ${D}${sysconfdir}/nemoclaw

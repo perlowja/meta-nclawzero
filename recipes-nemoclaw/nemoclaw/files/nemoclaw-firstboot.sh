@@ -1,11 +1,22 @@
 #!/bin/bash
 # nclawzero first-boot NemoClaw provisioning
-# Runs once on first boot, clones NemoClaw, applies patches, installs deps.
+#
+# Source tree is pre-cloned at /opt/nemoclaw by the nemoclaw-core recipe.
+# This script:
+#   1. If network reachable, fast-forward the pinned tree to origin/main
+#      (graceful fallback to Yocto-pinned version if offline).
+#   2. npm install --production (always runs; ~2-3 min on warm cache).
+#   3. Build the plugin if present.
+#   4. Install Claude Code CLI globally.
+#   5. Mark provisioned.
+#
+# Patches are applied at Yocto build time — no runtime patch application.
 
 set -e
 
 MARKER="/var/lib/nemoclaw/.provisioned"
 LOGFILE="/var/log/nemoclaw-firstboot.log"
+NEMOCLAW_DIR="/opt/nemoclaw"
 
 if [ -f "$MARKER" ]; then
     echo "NemoClaw already provisioned, skipping." >> "$LOGFILE"
@@ -14,49 +25,59 @@ fi
 
 echo "=== NemoClaw first-boot provisioning: $(date) ===" >> "$LOGFILE"
 
-# Clone NemoClaw
-echo "Cloning NemoClaw..." >> "$LOGFILE"
-git clone --depth 1 https://github.com/NVIDIA/NemoClaw.git /opt/nemoclaw >> "$LOGFILE" 2>&1
+# --- 1. Attempt online update, fall back silently ---------------------
+if [ -d "$NEMOCLAW_DIR/.git" ]; then
+    echo "Attempting online ff update of $NEMOCLAW_DIR ..." >> "$LOGFILE"
+    if cd "$NEMOCLAW_DIR" \
+        && git fetch --depth 1 origin main >> "$LOGFILE" 2>&1 \
+        && git reset --hard origin/main >> "$LOGFILE" 2>&1; then
+        echo "  updated to $(git rev-parse --short HEAD)" >> "$LOGFILE"
+    else
+        PINNED=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+        echo "  offline or fetch failed; running Yocto-pinned version ($PINNED)" >> "$LOGFILE"
+    fi
+else
+    echo "WARN: $NEMOCLAW_DIR/.git missing — expected pre-cloned tree from nemoclaw-core recipe" >> "$LOGFILE"
+fi
 
-# Apply nclawzero patches
-echo "Applying nclawzero patches..." >> "$LOGFILE"
-for patch in /etc/nemoclaw/patches/*.patch; do
-    [ -f "$patch" ] || continue
-    cd /opt/nemoclaw
-    git apply "$patch" >> "$LOGFILE" 2>&1 || echo "WARN: patch failed: $patch" >> "$LOGFILE"
-done
+cd "$NEMOCLAW_DIR"
 
-# Install uv (lightweight Python package manager)
+# --- 2. Install uv (used by blueprint Python scripts) ----------------
 echo "Installing uv..." >> "$LOGFILE"
-curl -LsSf https://astral.sh/uv/install.sh | sh >> "$LOGFILE" 2>&1
+if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh >> "$LOGFILE" 2>&1 || \
+        echo "WARN: uv install failed; continuing" >> "$LOGFILE"
+fi
 export PATH="$HOME/.local/bin:$PATH"
 
-# Install npm deps
+# --- 3. npm install deps ---------------------------------------------
 echo "Installing npm dependencies..." >> "$LOGFILE"
-cd /opt/nemoclaw
-npm install --production --no-optional >> "$LOGFILE" 2>&1
+npm install --production --no-optional >> "$LOGFILE" 2>&1 || {
+    echo "ERROR: npm install failed" >> "$LOGFILE"
+    exit 1
+}
 
-# Build plugin
-if [ -d "nemoclaw" ]; then
+# --- 4. Build plugin if present --------------------------------------
+if [ -d "$NEMOCLAW_DIR/nemoclaw" ]; then
     echo "Building NemoClaw plugin..." >> "$LOGFILE"
-    cd nemoclaw
-    npm install --production --no-optional >> "$LOGFILE" 2>&1
-    npm run build >> "$LOGFILE" 2>&1 || echo "WARN: plugin build skipped" >> "$LOGFILE"
-    cd ..
+    cd "$NEMOCLAW_DIR/nemoclaw"
+    npm install --production --no-optional >> "$LOGFILE" 2>&1 || \
+        echo "WARN: plugin npm install had warnings" >> "$LOGFILE"
+    npm run build >> "$LOGFILE" 2>&1 || \
+        echo "WARN: plugin build skipped" >> "$LOGFILE"
+    cd "$NEMOCLAW_DIR"
 fi
 
-# Install Claude Code CLI
+# --- 5. Install Claude Code CLI --------------------------------------
 echo "Installing Claude Code..." >> "$LOGFILE"
-npm install -g @anthropic-ai/claude-code >> "$LOGFILE" 2>&1 || echo "WARN: Claude Code install failed" >> "$LOGFILE"
+npm install -g @anthropic-ai/claude-code >> "$LOGFILE" 2>&1 || \
+    echo "WARN: Claude Code install failed" >> "$LOGFILE"
 
-# Verify Claude Code
-if command -v claude &>/dev/null; then
+if command -v claude >/dev/null 2>&1; then
     echo "Claude Code: $(claude --version 2>/dev/null | head -1)" >> "$LOGFILE"
-else
-    echo "WARN: Claude Code not in PATH after install" >> "$LOGFILE"
 fi
 
-# Mark provisioned
+# --- 6. Mark provisioned ---------------------------------------------
 mkdir -p /var/lib/nemoclaw
 touch "$MARKER"
 echo "=== NemoClaw + Claude Code provisioning complete: $(date) ===" >> "$LOGFILE"

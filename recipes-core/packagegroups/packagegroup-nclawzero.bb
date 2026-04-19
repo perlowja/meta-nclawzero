@@ -13,6 +13,7 @@ RDEPENDS:${PN} = " \
     nclawzero-cerberus-helper \
     nodejs-bin \
     nemoclaw-firstboot \
+    nemoclaw-core \
     ca-certificates \
     openssh-sftp-server \
     openssh-sshd \
