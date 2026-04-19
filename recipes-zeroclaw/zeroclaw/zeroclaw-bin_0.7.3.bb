@@ -8,7 +8,7 @@
 #
 # Tracking the latest tagged beta from master (0.7.3) because the schema
 # improvements on this track — first-class [runtime] section + clean
-# SandboxBackend enum — are what nclawzero's zeroclaw.toml depends on.
+# SandboxBackend enum — are what nclawzero's config.toml depends on.
 # Upgrade to stable 1.0 once released.
 
 SUMMARY = "ZeroClaw AI agent runtime (pre-built binary + web dashboard)"
@@ -23,7 +23,7 @@ ZEROCLAW_VERSION = "0.7.3-beta.1051"
 SRC_URI = " \
     https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/zeroclaw-aarch64-unknown-linux-gnu.tar.gz;name=bin \
     file://zeroclaw.service \
-    file://zeroclaw.toml \
+    file://config.toml \
 "
 
 SRC_URI[bin.sha256sum] = "2eb7fa9699e3e6064f7c882aa67f4f5fadc4002e1cdc588d924395d344e3bb3c"
@@ -47,7 +47,7 @@ do_install() {
 
     # Configuration
     install -d ${D}${sysconfdir}/zeroclaw
-    install -m 0600 ${WORKDIR}/zeroclaw.toml ${D}${sysconfdir}/zeroclaw/
+    install -m 0600 ${WORKDIR}/config.toml ${D}${sysconfdir}/zeroclaw/
 
     # Data directories
     install -d ${D}/var/lib/zeroclaw
@@ -67,7 +67,7 @@ FILES:${PN} = " \
     ${systemd_system_unitdir}/zeroclaw.service \
 "
 
-CONFFILES:${PN} = "${sysconfdir}/zeroclaw/zeroclaw.toml"
+CONFFILES:${PN} = "${sysconfdir}/zeroclaw/config.toml"
 
 # Pre-built binary is already stripped by upstream release process
 INSANE_SKIP:${PN} = "already-stripped"
@@ -78,6 +78,6 @@ INSANE_SKIP:${PN} = "already-stripped"
 # which is ordered before multi-user.target (zeroclaw.service).
 pkg_postinst_ontarget:${PN}() {
     chown -R zeroclaw:zeroclaw /var/lib/zeroclaw || true
-    chown zeroclaw:zeroclaw /etc/zeroclaw/zeroclaw.toml || true
-    chmod 0600 /etc/zeroclaw/zeroclaw.toml || true
+    chown zeroclaw:zeroclaw /etc/zeroclaw/config.toml || true
+    chmod 0600 /etc/zeroclaw/config.toml || true
 }
