@@ -30,6 +30,8 @@ SRC_URI = " \
     file://wpa_supplicant-wlan0.conf.template \
     file://nclawzero-thermal-tune.sh \
     file://nclawzero-thermal-tune.service \
+    file://nclawzero-irq-affinity.sh \
+    file://nclawzero-irq-affinity.service \
     file://nclawzero-workspace.tmpfiles \
     file://99-uinput.rules \
 "
@@ -39,7 +41,7 @@ S = "${WORKDIR}"
 inherit systemd
 
 SYSTEMD_PACKAGES = "${PN}"
-SYSTEMD_SERVICE:${PN} = "nclawzero-thermal-tune.service"
+SYSTEMD_SERVICE:${PN} = "nclawzero-thermal-tune.service nclawzero-irq-affinity.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 # Enable systemd-networkd + systemd-resolved so the dropped-in .network files
@@ -81,8 +83,12 @@ do_install() {
     install -d -m 0755 ${D}${libexecdir}/nclawzero
     install -m 0755 ${WORKDIR}/nclawzero-thermal-tune.sh \
         ${D}${libexecdir}/nclawzero/thermal-tune.sh
+    install -m 0755 ${WORKDIR}/nclawzero-irq-affinity.sh \
+        ${D}${libexecdir}/nclawzero/irq-affinity.sh
     install -d -m 0755 ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/nclawzero-thermal-tune.service \
+        ${D}${systemd_system_unitdir}/
+    install -m 0644 ${WORKDIR}/nclawzero-irq-affinity.service \
         ${D}${systemd_system_unitdir}/
 
     # tmpfiles.d for zeroclaw workspace
@@ -102,7 +108,9 @@ FILES:${PN} = " \
     ${sysconfdir}/systemd/network/20-wlan.network \
     ${sysconfdir}/wpa_supplicant/wpa_supplicant-wlan0.conf.template \
     ${libexecdir}/nclawzero/thermal-tune.sh \
+    ${libexecdir}/nclawzero/irq-affinity.sh \
     ${systemd_system_unitdir}/nclawzero-thermal-tune.service \
+    ${systemd_system_unitdir}/nclawzero-irq-affinity.service \
     ${sysconfdir}/tmpfiles.d/nclawzero-workspace.conf \
     ${sysconfdir}/udev/rules.d/99-uinput.rules \
 "

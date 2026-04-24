@@ -34,8 +34,30 @@ default_temperature = 0.7
 
 [providers.models.gemma-local]
 name = "openai"
-baseurl = "http://127.0.0.1:8080/v1"
+model = "gemma4-consult"
+baseurl = "http://127.0.0.1:8081/v1"
 api_key = "sk-none"
+requires_openai_auth = false
+
+# --- Agentic optimization: greedy tool-call fast-path -----------------
+# Same llama-server endpoint, but per-request overrides force temp=0 +
+# top_k=1 so the model emits the most-likely token at every step (no
+# sampling overhead, deterministic output). Route any skill whose output
+# is meant to be parsed (JSON, function-call args) here. Reserve
+# gemma-local (temp=0.65) for chat / natural-language turns.
+[providers.models.gemma-local-tool]
+name = "openai"
+model = "gemma4-consult"
+baseurl = "http://127.0.0.1:8081/v1"
+api_key = "sk-none"
+requires_openai_auth = false
+temperature = 0.0
+top_p = 1.0
+top_k = 1
+# For structured output, pass per-request GBNF grammar in the skill call:
+#   { "grammar": "<gbnf-spec>", ... }
+# llama-server constrains decode to valid strings of that grammar —
+# eliminates re-sampling on parse failures (~20-40% decode savings).
 
 # --- Runtime ----------------------------------------------------------
 # Native subprocess execution — no Docker wrapping of shell commands.

@@ -1,6 +1,6 @@
 [Unit]
-Description=llama.cpp HTTP /v1 server for Gemma-4-E4B (native, CUDA)
-After=srv-nclaw.mount network-online.target
+Description=llama.cpp HTTP /v1 server for Gemma-4-E4B (native, CUDA, agentic-tuned)
+After=srv-nclaw.mount network-online.target nclawzero-thermal-tune.service
 RequiresMountsFor=/srv/nclaw
 ConditionPathExists=/srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf
 
@@ -9,11 +9,30 @@ Type=exec
 Restart=always
 RestartSec=5s
 
-# Native binary from the llama-cpp Yocto recipe (meta-nclawzero). CUDA
-# offload via the Tegra integrated GPU — CMAKE_CUDA_ARCHITECTURES=87 +
-# meta-tegra cuda.bbclass. Mirrors TYPHON cmdline exactly (port 8081,
-# gemma4-consult alias, full performance params).
+# Agentic-use tuning rationale (see docs/UPDATES.md companion note):
+#
+#   --mlock            pin model pages in RAM; avoids any page-out jitter
+#                      mid-inference under memory pressure (demo-killer)
+#   --flash-attn on    fused attention kernel (free 15-25% speedup)
+#   --parallel 8       serve concurrent requests — agent tool-fanout
+#                      (zeroclaw fires multiple tool calls in parallel)
+#   --n-gpu-layers 99  offload everything possible to Tegra GPU
+#   -ctk/-ctv q8_0     8-bit KV cache (halves KV memory with <1% perplexity
+#                      loss); q4_0 is a further 2x at ~3% quality loss if
+#                      you want to experiment — edit + restart the service
+#   --ctx-size 32768   matches TYPHON; agent plan-react loops can grow
+#                      large when tools return big payloads
+#   --metrics          Prometheus /metrics endpoint — demo "receipts"
+#                      (tokens/s, queue depth, cache-hit ratio, latency)
+#   --no-mmap          load model fully into RAM at startup (with mlock,
+#                      ensures zero I/O jitter during inference)
+#
+# llama-server (b8923+) automatically reuses KV cache for any new request
+# whose prompt is a prefix of the previous one. That is the prompt-cache
+# primitive we need for agent plan-tool-observe loops; no flag required.
+
 Environment="LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib:/usr/lib"
+ExecStartPre=/bin/mkdir -p /srv/nclaw/cache
 ExecStart=/usr/bin/llama-server \
     --model /srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf \
     --alias gemma4-consult \
@@ -23,15 +42,32 @@ ExecStart=/usr/bin/llama-server \
     --flash-attn on \
     -ctk q8_0 -ctv q8_0 \
     --no-mmap \
+    --mlock \
+    --metrics \
     --temp 0.65 --top-p 0.9 --repeat-penalty 1.1 \
     -n 4096 \
     --host 0.0.0.0 --port 8081
 
-# Inference process — give it most of the box. 7.5B Q4 needs ~5GB RSS;
-# CUDA ctx adds another ~2GB. 6G cap is generous but keeps room for
-# zeroclaw + nemoclaw + XFCE/plymouth session.
+# Pin inference to cores 2-5 (4 of 6 Orin Nano Super Cortex-A78AE cores).
+# Cores 0-1 reserved for NIC IRQs + systemd/zeroclaw userspace so network
+# activity doesn't stall decode steps. Leaves cores 6-7 free for plymouth
+# / XFCE / remote-desktop sessions during recording.
+CPUAffinity=2 3 4 5
+
+# Memory cap + OOM protection. OOMScoreAdjust=-500 makes the kernel pick
+# anything else (zeroclaw, plymouth, XFCE) for OOM kill before touching
+# llama-server. Inference is the load-bearing process for the demo.
 MemoryMax=6G
 CPUQuota=95%
+OOMScoreAdjust=-500
+
+# Nice: -5 gives us preference in CPU scheduling without going RT.
+Nice=-5
+
+# IOSchedulingClass=best-effort + priority 0 for model mmap reads
+# (first load only — after --mlock there are no disk reads).
+IOSchedulingClass=best-effort
+IOSchedulingPriority=0
 
 [Install]
 WantedBy=multi-user.target

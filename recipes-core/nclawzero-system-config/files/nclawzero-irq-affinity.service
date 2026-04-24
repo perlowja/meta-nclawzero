@@ -1,0 +1,12 @@
+[Unit]
+Description=Pin network IRQs to cores 0-1 (keep 2-5 clean for inference)
+After=network.target systemd-networkd.service
+Before=llama-server-gemma.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/nclawzero/irq-affinity.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
