@@ -59,6 +59,9 @@ EXTRA_OECMAKE = " \
     -DLLAMA_CURL=OFF \
     -DLLAMA_BUILD_EXAMPLES=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
+    -DLLAMA_SERVER_SSL=OFF \
+    -DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=ON \
+    -DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON \
 "
 
 # CPU-only baseline; Jetson overrides below enable CUDA offload (~3–5× tok/s

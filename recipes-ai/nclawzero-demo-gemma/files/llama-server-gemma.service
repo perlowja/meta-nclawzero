@@ -1,28 +1,21 @@
 [Unit]
-Description=llama.cpp HTTP /v1 server for Gemma-4-E4B (Docker container)
-After=docker.service srv-nclaw.mount network-online.target
-Requires=docker.service
+Description=llama.cpp HTTP /v1 server for Gemma-4-E4B (native, CUDA)
+After=srv-nclaw.mount network-online.target
+RequiresMountsFor=/srv/nclaw
 ConditionPathExists=/srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf
 
 [Service]
 Type=exec
 Restart=always
 RestartSec=5s
-ExecStartPre=-/usr/bin/docker rm -f llama-server-gemma
-ExecStart=/usr/bin/docker run --name llama-server-gemma --rm \
-    --device /dev/nvgpu \
-    --device /dev/nvhost-power-gpu \
-    --device /dev/nvmap \
-    --device /dev/nvsciipc \
-    -v /usr/lib/libcuda.so:/usr/lib/aarch64-linux-gnu/libcuda.so:ro \
-    -v /usr/lib/libcuda.so.1:/usr/lib/aarch64-linux-gnu/libcuda.so.1:ro \
-    -v /usr/lib/libcuda.so.1.1:/usr/lib/aarch64-linux-gnu/libcuda.so.1.1:ro \
-    -v /usr/local/cuda-12.6/lib:/usr/local/cuda-12.6/lib:ro \
-    -v /srv/nclaw/models:/models:ro \
-    -e LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib:/usr/lib/aarch64-linux-gnu \
-    -p 8081:8081 \
-    ghcr.io/ggml-org/llama.cpp:server-cuda \
-    --model /models/gemma-4-E4B-it-Q4_K_M.gguf \
+
+# Native binary from the llama-cpp Yocto recipe (meta-nclawzero). CUDA
+# offload via the Tegra integrated GPU — CMAKE_CUDA_ARCHITECTURES=87 +
+# meta-tegra cuda.bbclass. Mirrors TYPHON cmdline exactly (port 8081,
+# gemma4-consult alias, full performance params).
+Environment="LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib:/usr/lib"
+ExecStart=/usr/bin/llama-server \
+    --model /srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf \
     --alias gemma4-consult \
     --n-gpu-layers 99 \
     --ctx-size 32768 \
@@ -33,6 +26,12 @@ ExecStart=/usr/bin/docker run --name llama-server-gemma --rm \
     --temp 0.65 --top-p 0.9 --repeat-penalty 1.1 \
     -n 4096 \
     --host 0.0.0.0 --port 8081
+
+# Inference process — give it most of the box. 7.5B Q4 needs ~5GB RSS;
+# CUDA ctx adds another ~2GB. 6G cap is generous but keeps room for
+# zeroclaw + nemoclaw + XFCE/plymouth session.
+MemoryMax=6G
+CPUQuota=95%
 
 [Install]
 WantedBy=multi-user.target

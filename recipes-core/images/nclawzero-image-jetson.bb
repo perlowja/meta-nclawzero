@@ -109,10 +109,12 @@ IMAGE_INSTALL:append = " \
 
 # --- Baseline utilities ----------------------------------------------------
 
-# Gemma 4 E4B demo stack (container-based — see nclawzero-demo-gemma).
-# Native llama-cpp build deferred until Tegra GPU passthrough works without
-# nvidia-container-toolkit; for now we pull ghcr.io/ggml-org/llama.cpp:server-cuda.
-IMAGE_INSTALL:append = " nclawzero-demo-gemma nclawzero-storage-init"
+# Gemma 4 E4B demo stack — native llama-cpp binary w/ CUDA (sm_87 for
+# Orin Ampere). See llama-cpp_git.bb for the build (inherits meta-tegra
+# cuda class, DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL to avoid native-sysroot
+# libssl cross-link confusion). No Docker — per fleet doctrine
+# (project_tydeus + user direction 2026-04-24: "go on the metal").
+IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma nclawzero-storage-init"
 
 IMAGE_INSTALL:append = " \
     curl wget git rsync \
