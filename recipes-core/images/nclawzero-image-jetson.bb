@@ -32,7 +32,7 @@ IMAGE_FEATURES += " \
     ssh-server-openssh \
     debug-tweaks \
     x11-base \
-    x11-mesa-driver \
+
     splash \
     package-management \
 "
