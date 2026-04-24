@@ -69,8 +69,11 @@ IMAGE_INSTALL:append = " \
 IMAGE_INSTALL:append = " \
     packagegroup-nclawzero \
     nclawzero-system-config \
-    nclawzero-dt-overlays \
 "
+# nclawzero-dt-overlays intentionally NOT in IMAGE_INSTALL — the broken
+# tegra-audio-graph-card driver is already disabled at kconfig level
+# (nclawzero-jetson-hw.cfg) so no overlay is needed. The recipe stays
+# in the layer as a reusable pattern for future codec HAT support.
 
 # --- Plymouth boot splash ---------------------------------------------------
 
@@ -100,7 +103,6 @@ IMAGE_INSTALL:append = " \
 
 IMAGE_INSTALL:append = " \
     linux-firmware-rtl-nic \
-    linux-firmware-rtl8168 \
     linux-firmware-rtl8822 \
     wireless-regdb-static \
 "

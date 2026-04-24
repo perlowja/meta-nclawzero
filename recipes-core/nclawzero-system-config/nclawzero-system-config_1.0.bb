@@ -38,8 +38,25 @@ S = "${WORKDIR}"
 
 inherit systemd
 
+SYSTEMD_PACKAGES = "${PN}"
 SYSTEMD_SERVICE:${PN} = "nclawzero-thermal-tune.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
+
+# Enable systemd-networkd + systemd-resolved so the dropped-in .network files
+# actually drive DHCP on first boot. Without this the .network units sit
+# unused and networking fails — this was the biggest triage finding from the
+# GRAEAE/codex pass. Done via pkg_postinst_ontarget because the units are
+# owned by the systemd package (not by this recipe), so SYSTEMD_SERVICE can't
+# directly claim them.
+pkg_postinst_ontarget:${PN} () {
+    if [ -x /usr/bin/systemctl ]; then
+        /usr/bin/systemctl enable systemd-networkd.service   || true
+        /usr/bin/systemctl enable systemd-resolved.service   || true
+        # systemd-resolved stub-resolv is the conventional /etc/resolv.conf
+        # symlink target on systemd-networkd setups.
+        ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf || true
+    fi
+}
 
 do_install() {
     # sudoers drop-in
