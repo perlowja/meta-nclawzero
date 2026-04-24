@@ -8,8 +8,8 @@
 # the rules that exist because this exact failure mode cost us a
 # disassembly on TYDEUS 2026-04-24):
 #
-#   primary-a         -> /boot/Image on slot A (PARTLABEL=APP_A)
-#   primary-b         -> /boot/Image on slot B (PARTLABEL=APP_B)   [A/B flip]
+#   primary-a         -> /boot/Image on slot A (LABEL=APP_A)
+#   primary-b         -> /boot/Image on slot B (LABEL=APP_B)   [A/B flip]
 #   primary-previous  -> /boot/Image.previous on active slot        [in-place rollback]
 #
 # DEFAULT is primary-a on first build. nclawzero-update slot-switch flips
@@ -54,6 +54,6 @@ nospectre_bhb \
 splash \
 "
 
-UBOOT_EXTLINUX_KERNEL_ARGS:primary-a = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_a root=PARTLABEL=APP_A"
-UBOOT_EXTLINUX_KERNEL_ARGS:primary-b = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_b root=PARTLABEL=APP_B"
+UBOOT_EXTLINUX_KERNEL_ARGS:primary-a = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_a root=LABEL=APP_A"
+UBOOT_EXTLINUX_KERNEL_ARGS:primary-b = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_b root=LABEL=APP_B"
 UBOOT_EXTLINUX_KERNEL_ARGS:primary-previous = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_prev root=/dev/${TNSPEC_BOOTDEV}"

@@ -214,8 +214,22 @@ slot-install)
     tar xzf "$rootfs" -C "$mnt"
     sync
 
-    # Set the slot's PARTLABEL so boot.slot_suffix=_nclawzero_<slot> can find it
-    parted -s /dev/mmcblk0 name "$(echo $tgt_dev | sed 's/.*mmcblk0p//')" "APP_$(echo $tgt_slot | tr a-z A-Z)" 2>/dev/null || true
+    # Validate the unpacked rootfs before letting slot-switch point boot at it.
+    # A partial tarball or wrong-arch image would silently brick the slot.
+    [ -f "$mnt/boot/Image" ]          || die "tarball missing /boot/Image — slot not usable"
+    [ -f "$mnt/boot/extlinux/extlinux.conf" ] || echo "warn: tarball missing /boot/extlinux/extlinux.conf"
+    [ -d "$mnt/lib/modules" ]         || die "tarball missing /lib/modules — slot not usable"
+
+    # Ensure the ext4 filesystem label matches what our extlinux root=LABEL= expects.
+    # Our wic ships slot A with LABEL=APP_A and slot B with LABEL=APP_B; if a
+    # manually-created slot B came up blank-labelled, fix it here.
+    target_label="APP_$(echo "$tgt_slot" | tr a-z A-Z)"
+    cur_label=$(/usr/sbin/blkid -s LABEL -o value "$tgt_dev" 2>/dev/null)
+    if [ "$cur_label" != "$target_label" ]; then
+        umount "$mnt"
+        /usr/sbin/tune2fs -L "$target_label" "$tgt_dev"             && echo "set filesystem label on $tgt_dev: $cur_label -> $target_label"             || die "could not relabel $tgt_dev to $target_label — install tune2fs"
+        mount "$tgt_dev" "$mnt"
+    fi
 
     umount "$mnt"
     rmdir "$mnt"
