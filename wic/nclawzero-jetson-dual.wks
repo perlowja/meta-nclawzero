@@ -1,0 +1,23 @@
+# Dual-slot SD image for Jetson Orin Nano — ships with slot A installed and
+# slot B empty-formatted so nclawzero-update slot-install can write to it
+# without live repartitioning.
+#
+# layout:
+#   p1  APP_A   rootfs image          (primary, boots by default)
+#   p2  APP_B   empty ext4, labelled  (staged slot for A/B rollback)
+#
+# boot.slot_suffix=_nclawzero_a in the extlinux APPEND tells meta-tegra
+# initrd to skip its PARTLABEL=APP blkid scan (the TYDEUS-saga root cause
+# — see feedback_no_broken_drivers.md + the l4t-launcher-extlinux bbappend).
+#
+# Total ~56 GB on a 64 GB card (28 GB per slot) — tune TEGRAFLASH_SDCARD_SIZE
+# in machine.conf to match; dual-slot halves single-slot capacity.
+
+bootloader --ptable gpt --append="earlycon console=tty0 console=ttyTCU0,115200 splash boot.slot_suffix=_nclawzero_a"
+
+# Slot A — primary rootfs
+part / --source rootfs --fstype=ext4 --label APP_A --active --align 1024 --size 28672 --fsoptions="noatime,errors=remount-ro"
+
+# Slot B — staged rootfs (empty ext4, labelled). nclawzero-update slot-install
+# writes to this partition by PARTLABEL.
+part none --fstype=ext4 --label APP_B --align 1024 --size 28672 --fsoptions="noatime,errors=remount-ro"

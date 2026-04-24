@@ -1,5 +1,17 @@
 # nclawzero — Updating a live device
 
+> **IMPORTANT:** the A/B slot path below only works on devices flashed with
+> `nclawzero-image-jetson-dual` (dual-slot WIC). Devices flashed with the
+> single-slot `nclawzero-image-jetson` only have the in-place kernel + overlay
+> paths; a bad kernel on a single-slot device is recoverable via the
+> `primary-previous` extlinux LABEL (keypress at the 30s menu), or — if that
+> fails too — via physical SD swap.
+>
+> **The dual-slot image is the recommended format for all new flashes going
+> forward.** Built by `bitbake nclawzero-image-jetson-dual`; dd to a fresh
+> SD card; first boot comes up on slot A with slot B empty-formatted and ready
+> for OTA rootfs updates.
+
 Three update paths, each with different blast radius and rollback story.
 Pick the lightest one that fits your change.
 

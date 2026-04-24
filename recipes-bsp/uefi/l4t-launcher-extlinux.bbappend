@@ -1,37 +1,59 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Bake nclawzero-specific kernel boot args into the generated extlinux.conf
-# so fresh flashes boot straight into Yocto without needing the
-# fix-tydeus-all.sh USB rescue pass.
+# nclawzero extlinux generator — multi-LABEL for robust rollback.
 #
-# boot.slot_suffix=_nclawzero
-#   Tells meta-tegra's initrd /etc/platform-preboot to skip the
-#   'blkid -t PARTLABEL=APP' scan that otherwise overrides root=
-#   with whichever PARTLABEL=APP enumerates first (NVMe vs SD).
-#   Root cause of the TYDEUS rescue saga — captured in
-#   scripts/jetson-rescue/fix-tydeus-slot-suffix.sh.
+# Emits THREE labels so a bad kernel / bad rootfs is a 30s menu keypress
+# away from recovery, not a device-disassembly + SD-pull operation
+# (see feedback_console_always_on.md + feedback_no_rollback_no_kernel_push.md —
+# the rules that exist because this exact failure mode cost us a
+# disassembly on TYDEUS 2026-04-24):
 #
-# root=/dev/${TNSPEC_BOOTDEV}
-#   Explicit root device for the cmdline. TNSPEC_BOOTDEV defaults to
-#   mmcblk0p1 for orin-nano (SD) and nvme0n1p1 for orin-nx; both
-#   deterministic on the devkit hardware.
+#   primary-a         -> /boot/Image on slot A (PARTLABEL=APP_A)
+#   primary-b         -> /boot/Image on slot B (PARTLABEL=APP_B)   [A/B flip]
+#   primary-previous  -> /boot/Image.previous on active slot        [in-place rollback]
 #
-# quiet splash loglevel=3
-#   Clean boot for demo posture — plymouth handles progress display;
-#   kernel only spills emerg/alert/crit/err to the console.
-#   dmesg is still available for diagnostics post-boot.
+# DEFAULT is primary-a on first build. nclawzero-update slot-switch flips
+# DEFAULT between primary-a / primary-b. TIMEOUT 30 (3s) is deliberately
+# short so happy-path boots are not slow, but 30 DS is enough for a
+# keyboard-present operator to intervene. (Reminder: extlinux TIMEOUT is
+# in DECISECONDS — a CLAUDE.md-noted gotcha.)
+#
+# boot.slot_suffix=_nclawzero_a / _b bypasses meta-tegra platform-preboot
+# blkid PARTLABEL=APP scan (the original TYDEUS-rescue-saga root cause).
+#
+# console=tty0 + console=ttyTCU0,115200 + earlycon ensures framebuffer
+# console AND UART both work from kernel handoff onwards (per the
+# feedback_console_always_on.md rule). NO "quiet" flag — kernel diagnostics
+# must always be visible so a boot failure is not a silent brick.
+# plymouth still runs (splash flag) but only after its unit fires, so
+# early panics fall through to the console.
 
-UBOOT_EXTLINUX_KERNEL_ARGS:tegra = " \
-boot.slot_suffix=_nclawzero \
-root=/dev/${TNSPEC_BOOTDEV} \
+UBOOT_EXTLINUX_LABELS = "primary-a primary-b primary-previous"
+UBOOT_EXTLINUX_DEFAULT_LABEL = "primary-a"
+UBOOT_EXTLINUX_TIMEOUT = "30"
+
+UBOOT_EXTLINUX_MENU_DESCRIPTION:primary-a = "nclawzero slot A (active)"
+UBOOT_EXTLINUX_MENU_DESCRIPTION:primary-b = "nclawzero slot B (staged / fallback)"
+UBOOT_EXTLINUX_MENU_DESCRIPTION:primary-previous = "nclawzero — previous kernel (rollback)"
+
+UBOOT_EXTLINUX_KERNEL_IMAGE:primary-a = "/boot/Image"
+UBOOT_EXTLINUX_KERNEL_IMAGE:primary-b = "/boot/Image"
+UBOOT_EXTLINUX_KERNEL_IMAGE:primary-previous = "/boot/Image.previous"
+
+# Common kernel args. Per-slot root= set below.
+NCLAWZERO_COMMON_KARGS = " \
+earlycon \
+console=tty0 \
+console=ttyTCU0,115200 \
 rw \
 rootwait \
 rootfstype=ext4 \
-console=ttyTCU0,115200 \
 firmware_class.path=/etc/firmware \
 fbcon=map:0 \
 nospectre_bhb \
-quiet \
 splash \
-loglevel=3 \
 "
+
+UBOOT_EXTLINUX_KERNEL_ARGS:primary-a = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_a root=PARTLABEL=APP_A"
+UBOOT_EXTLINUX_KERNEL_ARGS:primary-b = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_b root=PARTLABEL=APP_B"
+UBOOT_EXTLINUX_KERNEL_ARGS:primary-previous = "${NCLAWZERO_COMMON_KARGS} boot.slot_suffix=_nclawzero_prev root=/dev/${TNSPEC_BOOTDEV}"
