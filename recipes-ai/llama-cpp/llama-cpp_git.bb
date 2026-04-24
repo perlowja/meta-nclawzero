@@ -19,8 +19,12 @@ HOMEPAGE = "https://github.com/ggml-org/llama.cpp"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=223b26b3c1143120c87e2b13111d3e99"
 
-SRCREV = "9e5647affa54ea724196db15ec9b76c4abd16d4a"
-# Upstream tag: b8840 (2026-04-18)
+# Track upstream master HEAD (alpha/pre-alpha posture — see STATUS.md).
+# llama.cpp master moves fast and occasionally breaks; if a build fails
+# here, pin back to the last known-good SHA while upstream sorts it,
+# then return to AUTOREV.
+SRCREV = "${AUTOREV}"
+# Previous pin (kept for quick revert): 9e5647affa54ea724196db15ec9b76c4abd16d4a (tag b8840, 2026-04-18)
 PV = "0+git${SRCPV}"
 
 SRC_URI = "git://github.com/ggml-org/llama.cpp.git;branch=master;protocol=https"

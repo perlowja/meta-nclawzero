@@ -2,6 +2,14 @@
 
 Yocto layer for building minimal embedded Linux images with the ZeroClaw AI agent runtime and NemoClaw sandbox framework.
 
+> ## ⚠️ Canary track — no stability claims
+>
+> **Current `main` is the canary track.** Upstream-sourced recipes (`nemoclaw-core`, `llama-cpp`, etc.) use `SRCREV = "${AUTOREV}"` and pull whatever `main` / `master` of the upstream repo resolves to at the moment of the build. Every build is a snapshot of fast-moving upstreams; breakage between builds is expected.
+>
+> This layer makes **no claims about system stability, feature completeness, or fitness for any purpose**. Treat every build as pre-alpha — a rolling investigation of what's in upstream HEAD right now, not a deliverable product.
+>
+> A companion **conservative track** (see `conservative/*` branches) pins upstream-sourced recipes to the latest tagged upstream releases. Still not LTS-grade — no backport SLAs, no release promises — just pinned-to-releases rather than tracking HEAD, updated on a slower cadence than `main`. See [STATUS.md](./STATUS.md) for the full canary-vs-conservative model.
+
 ## What it does
 
 Pulls upstream NemoClaw and ZeroClaw at build time. Applies a small patchset (~430 lines across 3 patches). Copies overlay files (ZeroClaw agent definition, security tests, deployment scripts). Produces a flashable SD card image.

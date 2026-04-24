@@ -23,9 +23,13 @@ HOMEPAGE = "https://github.com/NVIDIA/NemoClaw"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1f293dba04bfaa7b92e9480eed656511"
 
-# Pin to upstream main HEAD at Yocto build time.
-# First-boot will git fetch origin when online; this is the offline fallback.
-SRCREV = "4e6508d0cbba95c04112421dd321dbc34188a3a5"
+# Track upstream main HEAD at every build (canary posture — see
+# STATUS.md in the layer root). Each rebuild pulls whatever main
+# resolves to at that moment. First-boot still does an online
+# fetch+reset on top of this for devices flashed long after build.
+# On the conservative/* branches this is replaced with a pinned SHA
+# (latest tagged upstream release); main stays on AUTOREV.
+SRCREV = "${AUTOREV}"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/NVIDIA/NemoClaw.git;branch=main;protocol=https"
