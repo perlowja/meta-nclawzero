@@ -149,6 +149,14 @@ any key and pick the old slot if the new one doesn't come up. The
 initrd to skip its PARTLABEL scan and honour the explicit `root=` we set
 in `APPEND`.
 
+> **Cross-slot rollback note**: the `primary-previous` extlinux LABEL is the
+> *in-place kernel rollback* (boots `/boot/Image.previous` on the currently
+> active slot). `slot-switch` and `kernel` both rewrite that label's `root=`
+> to track whichever slot you're on or about to be on, so picking
+> `primary-previous` from the menu always boots the *same slot* you intended
+> to be on, just with the previous kernel. This is what we want: a bad
+> kernel update is recoverable in one keypress without flipping slots.
+
 ### Rollback
 
 ```sh

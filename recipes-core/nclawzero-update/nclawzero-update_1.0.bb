@@ -24,7 +24,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7ca
 SRC_URI = "file://nclawzero-update.sh"
 S = "${WORKDIR}"
 
-RDEPENDS:${PN} = "bash util-linux-blkid util-linux-findmnt e2fsprogs-tune2fs kmod tar gzip coreutils"
+RDEPENDS:${PN} = "bash util-linux-blkid util-linux-findmnt e2fsprogs-tune2fs e2fsprogs-e2fsck kmod tar gzip coreutils"
 
 do_install() {
     install -d ${D}${bindir}

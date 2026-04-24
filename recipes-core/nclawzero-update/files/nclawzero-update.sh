@@ -74,7 +74,22 @@ ensure_primary_previous_label() {
     grep -q '^LABEL primary-previous' "$CONF" && return 0
 
     active_dev=$(findmnt -n -o SOURCE /)
-    kargs=$(awk '/^LABEL[[:space:]]+(primary|primary-a)[[:space:]]*$/,/^LABEL/ {if (/^[[:space:]]*APPEND/) {sub(/^[[:space:]]*APPEND[[:space:]]+/,""); print; exit}}' "$CONF")
+    # Try to extract APPEND from the active LABEL block (primary, primary-a,
+    # or primary-b). Earlier versions used an awk range pattern, but ranges
+    # of the form /^LABEL.../, /^LABEL/ close immediately because the start
+    # line is itself matched by the end pattern — extracting nothing. Use
+    # a flag-and-walk approach instead.
+    kargs=$(awk '
+        /^LABEL[[:space:]]+(primary|primary-a|primary-b)[[:space:]]*$/ { in_block=1; next }
+        in_block && /^LABEL / { exit }
+        in_block && /^[[:space:]]*APPEND/ { sub(/^[[:space:]]*APPEND[[:space:]]+/,""); print; exit }
+    ' "$CONF")
+    # L4TLauncher requires an APPEND line that begins with "${cbootargs} "
+    # to actually concatenate the arg list onto the kernel command line
+    # (see meta-tegra l4t-extlinux-config.bbclass header). The bbclass
+    # auto-prepends ${cbootargs} when generating, so extracted APPEND lines
+    # ALREADY contain it. Hand-emitted APPEND lines (this fallback path)
+    # MUST include the literal token "${cbootargs}" at the start.
     [ -n "$kargs" ] || kargs="\${cbootargs} root=$active_dev rw rootwait rootfstype=ext4 console=tty0 console=ttyTCU0,115200 earlycon fbcon=map:0 nospectre_bhb splash"
 
     cat >> "$CONF" << EOF
@@ -87,6 +102,47 @@ LABEL primary-previous
 EOF
     sync
     echo "extlinux: added LABEL primary-previous pointing at /boot/Image.previous"
+}
+
+fixup_primary_previous_root() {
+    # The bbappend-generated primary-previous LABEL bakes
+    #   root=/dev/${TNSPEC_BOOTDEV}    -> e.g. root=/dev/mmcblk0p1
+    # at build time. That's correct when we're booted from slot A, but if
+    # we're on slot B and a kernel update goes wrong, the rollback label
+    # would boot slot A's rootfs with slot B's /boot/Image.previous —
+    # the wrong slot's old kernel paired with the wrong rootfs.
+    #
+    # Force the primary-previous APPEND root= to LABEL=APP_<active>, which
+    # always matches the currently-running slot regardless of which
+    # /dev/mmcblk0pN it landed on.
+    grep -q '^LABEL primary-previous' "$CONF" || return 0
+
+    active=$(active_slot)
+    case "$active" in
+    a) target_label="APP_A" ;;
+    b) target_label="APP_B" ;;
+    *) echo "warn: cannot determine active slot — skipping primary-previous root=fixup"; return 0 ;;
+    esac
+
+    # awk in-place edit: in the primary-previous LABEL block, rewrite the
+    # root=... token of the APPEND line to root=LABEL=$target_label.
+    tmp_conf=$(mktemp)
+    awk -v tgt="root=LABEL=$target_label" '
+        /^LABEL primary-previous[[:space:]]*$/ { in_block=1 }
+        in_block && /^LABEL / && !/^LABEL primary-previous/ { in_block=0 }
+        in_block && /^[[:space:]]*APPEND/ {
+            # Replace any existing root=... token (LABEL=, UUID=, /dev/...,
+            # PARTUUID=, PARTLABEL=) with the slot-correct one.
+            if ($0 ~ /root=[^ ]+/) {
+                sub(/root=[^ ]+/, tgt)
+            } else {
+                sub(/$/, " " tgt)
+            }
+        }
+        { print }
+    ' "$CONF" > "$tmp_conf" && cat "$tmp_conf" > "$CONF" && rm -f "$tmp_conf"
+    sync
+    echo "extlinux: primary-previous root=LABEL=$target_label (matches active slot $active)"
 }
 
 # -------- commands ---------------------------------------------------------
@@ -120,6 +176,14 @@ kernel)
     # an extlinux rollback label exists. Without this, a bad Image means the
     # only recovery is physical SD removal.
     ensure_primary_previous_label
+    # AND: ensure that label's root= matches whichever slot we're on. The
+    # bbappend-generated primary-previous bakes root=/dev/${TNSPEC_BOOTDEV}
+    # which is fixed to slot A at build time; rebooting into rollback from
+    # slot B without this fixup would boot slot A's rootfs with slot B's
+    # backup kernel. (Real-world: silent boot to a stale rootfs that thinks
+    # it's the active slot — even worse than a panic, because nothing alerts
+    # the operator.)
+    fixup_primary_previous_root
     sync
 
     cat << DONE
@@ -224,10 +288,22 @@ slot-install)
     # Our wic ships slot A with LABEL=APP_A and slot B with LABEL=APP_B; if a
     # manually-created slot B came up blank-labelled, fix it here.
     target_label="APP_$(echo "$tgt_slot" | tr a-z A-Z)"
-    cur_label=$(/usr/sbin/blkid -s LABEL -o value "$tgt_dev" 2>/dev/null)
+    cur_label=$(/usr/sbin/blkid -s LABEL -o value "$tgt_dev" 2>/dev/null || true)
     if [ "$cur_label" != "$target_label" ]; then
         umount "$mnt"
-        /usr/sbin/tune2fs -L "$target_label" "$tgt_dev"             && echo "set filesystem label on $tgt_dev: $cur_label -> $target_label"             || die "could not relabel $tgt_dev to $target_label — install tune2fs"
+        # Some tune2fs versions refuse a relabel on a not-quite-clean
+        # filesystem (Journal needs replay, last-mount-count exceeded,
+        # etc.). Run a non-interactive fsck first so the tune2fs path
+        # is robust. -f forces, -y answers yes to repairs.
+        if command -v e2fsck >/dev/null 2>&1; then
+            e2fsck -fy "$tgt_dev" || true
+        fi
+        if /usr/sbin/tune2fs -L "$target_label" "$tgt_dev"; then
+            echo "set filesystem label on $tgt_dev: ${cur_label:-<unset>} -> $target_label"
+        else
+            mount "$tgt_dev" "$mnt"  # remount so trap can clean up
+            die "could not relabel $tgt_dev to $target_label — verify tune2fs is installed and the filesystem is clean"
+        fi
         mount "$tgt_dev" "$mnt"
     fi
 
@@ -242,12 +318,35 @@ slot-install)
 slot-switch)
     cur=$(extlinux_default)
     case "$cur" in
-    primary|primary-a) new=primary-b ;;
-    primary-b)         new=primary-a ;;
+    primary|primary-a) new=primary-b; new_label="APP_B" ;;
+    primary-b)         new=primary-a; new_label="APP_A" ;;
     *) die "DEFAULT '$cur' isn't a known slot label; edit $CONF manually" ;;
     esac
     grep -q "^LABEL $new" "$CONF" || die "$CONF has no LABEL $new entry; run slot-install first"
     sed -i "s/^DEFAULT .*/DEFAULT $new/" "$CONF"
+
+    # Also fixup primary-previous root= to point at the NEW intended-active
+    # slot. After reboot, if the new slot fails and the operator picks
+    # primary-previous from the menu, we want that label's root= to match
+    # the same-slot's /boot/Image.previous — not the slot we just left.
+    # (Without this, operator sees: slot B chosen, slot B fails, picks
+    # primary-previous, lands on slot A's old rootfs — confusing.)
+    if grep -q '^LABEL primary-previous' "$CONF"; then
+        tmp_conf=$(mktemp)
+        awk -v tgt="root=LABEL=$new_label" '
+            /^LABEL primary-previous[[:space:]]*$/ { in_block=1 }
+            in_block && /^LABEL / && !/^LABEL primary-previous/ { in_block=0 }
+            in_block && /^[[:space:]]*APPEND/ {
+                if ($0 ~ /root=[^ ]+/) {
+                    sub(/root=[^ ]+/, tgt)
+                } else {
+                    sub(/$/, " " tgt)
+                }
+            }
+            { print }
+        ' "$CONF" > "$tmp_conf" && cat "$tmp_conf" > "$CONF" && rm -f "$tmp_conf"
+        echo "extlinux primary-previous root= updated to LABEL=$new_label"
+    fi
     sync
     echo "extlinux DEFAULT: $cur -> $new"
     ;;
