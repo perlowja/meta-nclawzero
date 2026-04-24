@@ -159,18 +159,54 @@ kernel)
     [ -f "$tmp/Image" ]    || die "tarball missing /Image"
     [ -d "$tmp/modules" ]  || die "tarball missing /modules"
 
-    # Back up current Image + modules so rollback stays possible
-    [ -f "$BOOT/Image" ] && cp -a "$BOOT/Image" "$BOOT/Image.previous"
-    sha_new=$(sha256sum "$tmp/Image" | cut -d' ' -f1)
-    cp "$tmp/Image" "$BOOT/Image.new" && sync && mv "$BOOT/Image.new" "$BOOT/Image"
+    # The new kernel's vermagic is whatever directory name the tarball ships
+    # under modules/. Modules MUST land under /lib/modules/<NEW_KVER> — using
+    # $(uname -r) (the running kernel) would put the new modules in the old
+    # kver path, and after reboot the new kernel would find no modules in
+    # /lib/modules/<NEW_KVER> → boot might POST but networking, USB, NVMe,
+    # GPU all fail to bring up.
+    new_kver=$(ls -1 "$tmp/modules" 2>/dev/null | head -n1)
+    [ -n "$new_kver" ] || die "tarball modules/ is empty"
+    [ -d "$tmp/modules/$new_kver" ] || die "tarball modules/$new_kver is not a directory"
+    [ -d "$tmp/modules/$new_kver/kernel" ] || die "tarball modules/$new_kver/kernel missing — wrong layout"
 
-    kver=$(uname -r)
-    if [ -d "/lib/modules/$kver" ]; then
-        rm -rf "/lib/modules/$kver.previous"
-        mv "/lib/modules/$kver" "/lib/modules/$kver.previous"
+    # An accompanying initrd in the tarball is encouraged. If present, we'll
+    # swap it atomically after the kernel; if absent, we keep the existing
+    # initrd (vermagic-bearing modules in initrd may then mismatch — but in
+    # our build, initrd modules live in /lib/modules/<INITRD_KVER>/ inside
+    # the cpio so they don't depend on the host kernel's modules dir).
+    new_initrd=""
+    [ -f "$tmp/initrd" ] && new_initrd="$tmp/initrd"
+
+    # ----- stage everything to *.new sibling files first; rename at the end -----
+    # Atomic-rename pattern: the only state where the system is unbootable
+    # is between rename of Image (old → previous) and rename of Image.new → Image.
+    # That window is two-rename-syscalls long; sync is forced before each.
+
+    sha_new=$(sha256sum "$tmp/Image" | cut -d' ' -f1)
+    cp "$tmp/Image" "$BOOT/Image.new"
+    [ -n "$new_initrd" ] && cp "$new_initrd" "$BOOT/initrd.new"
+
+    # Stage modules dir under its TRUE kver so a partial install + power loss
+    # doesn't pollute the running kver's modules.
+    if [ -d "/lib/modules/$new_kver" ]; then
+        rm -rf "/lib/modules/$new_kver.previous"
+        mv "/lib/modules/$new_kver" "/lib/modules/$new_kver.previous"
     fi
-    mv "$tmp/modules" "/lib/modules/$kver" 2>/dev/null || mv "$tmp/modules/$kver" "/lib/modules/$kver"
-    depmod -a "$kver"
+    mv "$tmp/modules/$new_kver" "/lib/modules/$new_kver"
+    depmod -a "$new_kver"
+    sync
+
+    # Now flip kernel + initrd via atomic mv. Image.previous becomes the
+    # rollback target; primary-previous extlinux LABEL points at it.
+    [ -f "$BOOT/Image" ] && cp -a "$BOOT/Image" "$BOOT/Image.previous"
+    sync
+    mv "$BOOT/Image.new" "$BOOT/Image"
+    if [ -n "$new_initrd" ]; then
+        [ -f "$BOOT/initrd" ] && cp -a "$BOOT/initrd" "$BOOT/initrd.previous"
+        mv "$BOOT/initrd.new" "$BOOT/initrd"
+    fi
+    sync
 
     # CRITICAL (the gap that forced disassembly on TYDEUS 2026-04-24): ensure
     # an extlinux rollback label exists. Without this, a bad Image means the
@@ -188,8 +224,11 @@ kernel)
 
     cat << DONE
 kernel updated.
+  running kernel:                   $(uname -r)
+  staged kernel vermagic:           $new_kver
   /boot/Image                       = $sha_new  (new; backup: /boot/Image.previous)
-  /lib/modules/$kver                (new; backup: .previous/)
+  /lib/modules/$new_kver           (new; backup: $new_kver.previous/)
+$( [ -n "$new_initrd" ] && echo "  /boot/initrd                      (new; backup: /boot/initrd.previous)" )
   extlinux LABEL primary-previous   present (rollback via 30s menu)
 
 reboot to activate. if new kernel fails to POST to framebuffer / console,
@@ -283,6 +322,31 @@ slot-install)
     [ -f "$mnt/boot/Image" ]          || die "tarball missing /boot/Image — slot not usable"
     [ -f "$mnt/boot/extlinux/extlinux.conf" ] || echo "warn: tarball missing /boot/extlinux/extlinux.conf"
     [ -d "$mnt/lib/modules" ]         || die "tarball missing /lib/modules — slot not usable"
+    [ -x "$mnt/sbin/init" ] || [ -x "$mnt/lib/systemd/systemd" ] \
+        || die "tarball missing /sbin/init AND /lib/systemd/systemd — slot not usable"
+
+    # Confirm /lib/modules/<kver> exists with at least kernel/ inside (otherwise
+    # boot will produce a kernel that can't load any drivers — networking/usb/
+    # nvme dead, no console-input recovery if the operator's at the keyboard).
+    found_modules_kver=""
+    for kdir in "$mnt"/lib/modules/*/; do
+        if [ -d "$kdir/kernel" ]; then
+            found_modules_kver=$(basename "$kdir")
+            break
+        fi
+    done
+    [ -n "$found_modules_kver" ] || die "tarball /lib/modules/* contains no kernel/ subdir — slot not bootable"
+
+    # Drop a marker file so slot-switch can refuse to flip to a half-installed
+    # slot. The marker is written ONLY at the end of a successful install,
+    # which means a power-loss midway leaves no marker → slot-switch refuses.
+    cat > "$mnt/.nclawzero-slot-ready" << MARKER
+slot=$tgt_slot
+installed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+modules_kver=$found_modules_kver
+boot_image_sha256=$(sha256sum "$mnt/boot/Image" | cut -d' ' -f1)
+MARKER
+    sync
 
     # Ensure the ext4 filesystem label matches what our extlinux root=LABEL= expects.
     # Our wic ships slot A with LABEL=APP_A and slot B with LABEL=APP_B; if a
@@ -318,11 +382,39 @@ slot-install)
 slot-switch)
     cur=$(extlinux_default)
     case "$cur" in
-    primary|primary-a) new=primary-b; new_label="APP_B" ;;
-    primary-b)         new=primary-a; new_label="APP_A" ;;
+    primary|primary-a) new=primary-b; new_label="APP_B"; new_slot="b"; new_dev=/dev/mmcblk0p2 ;;
+    primary-b)         new=primary-a; new_label="APP_A"; new_slot="a"; new_dev=/dev/mmcblk0p1 ;;
     *) die "DEFAULT '$cur' isn't a known slot label; edit $CONF manually" ;;
     esac
     grep -q "^LABEL $new" "$CONF" || die "$CONF has no LABEL $new entry; run slot-install first"
+
+    # Sanity-check the target slot before flipping DEFAULT. Refuses to switch
+    # if the target's filesystem doesn't exist OR the slot-install marker is
+    # missing (= last install was interrupted or never happened on a fresh
+    # dual wic, which ships slot B as empty ext4). Without this, a flip to a
+    # blank slot B would brick — kernel would panic at rootwait + initrd
+    # waits forever for /lib/modules/<kver>.
+    [ -b "$new_dev" ] || die "$new_dev not present — slot $new_slot has no partition"
+    fs=$(/usr/sbin/blkid -s TYPE -o value "$new_dev" 2>/dev/null || true)
+    [ "$fs" = "ext4" ] || die "$new_dev fs='$fs', expected ext4 — slot $new_slot not usable"
+    cur_label=$(/usr/sbin/blkid -s LABEL -o value "$new_dev" 2>/dev/null || true)
+    [ "$cur_label" = "$new_label" ] \
+        || die "$new_dev LABEL='$cur_label', expected '$new_label' — re-run slot-install"
+
+    sw_mnt=$(mktemp -d)
+    mount -o ro "$new_dev" "$sw_mnt" || die "could not mount $new_dev for sanity check"
+    has_marker=0
+    [ -f "$sw_mnt/.nclawzero-slot-ready" ] && has_marker=1
+    has_image=0
+    [ -f "$sw_mnt/boot/Image" ] && has_image=1
+    has_init=0
+    ([ -x "$sw_mnt/sbin/init" ] || [ -x "$sw_mnt/lib/systemd/systemd" ]) && has_init=1
+    umount "$sw_mnt"; rmdir "$sw_mnt"
+
+    if [ "$has_marker" -ne 1 ] || [ "$has_image" -ne 1 ] || [ "$has_init" -ne 1 ]; then
+        die "slot $new_slot fails sanity (marker=$has_marker image=$has_image init=$has_init); run 'nclawzero-update slot-install <tar>' first"
+    fi
+
     sed -i "s/^DEFAULT .*/DEFAULT $new/" "$CONF"
 
     # Also fixup primary-previous root= to point at the NEW intended-active
