@@ -64,14 +64,7 @@ IMAGE_INSTALL:append = " \
     thunar-media-tags-plugin \
 "
 
-# --- Fonts — OpenType + TrueType coverage ----------------------------------
-
-IMAGE_INSTALL:append = " \
-    ttf-dejavu \
-    ttf-liberation \
-    ttf-google-fira \
-    ttf-inconsolata \
-"
+# Fonts: baseline via packagegroup-core-x11; extras install post-boot.
 
 # --- nclawzero agent stack --------------------------------------------------
 
