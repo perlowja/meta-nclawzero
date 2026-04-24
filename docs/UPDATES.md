@@ -69,7 +69,7 @@ tar xzf modules-jetson-orin-nano-devkit.tgz -C "$TMP/"
 tar czf kernel-update.tar.gz -C "$TMP" .
 
 # Push to the device (any transport — scp / rsync / http)
-scp kernel-update.tar.gz pi@<jetson-ip>:/srv/nclaw/apps/
+scp kernel-update.tar.gz ncz@<jetson-ip>:/srv/nclaw/apps/
 ```
 
 ### What can go wrong
@@ -130,7 +130,7 @@ mmcblk0     179:0    0  58.2G  0 disk
 # On ARGOS: build + ship the full rootfs tarball
 bitbake nclawzero-image-jetson
 scp /home/jasonperlow/yocto-tmp/build-jetson-tmp/deploy/images/jetson-orin-nano-devkit/nclawzero-image-jetson-*.rootfs.tar.gz \
-    pi@<jetson>:/srv/nclaw/apps/nclawzero-rootfs-new.tar.gz
+    ncz@<jetson>:/srv/nclaw/apps/nclawzero-rootfs-new.tar.gz
 
 # On the Jetson: install to the inactive slot (does NOT reboot)
 sudo nclawzero-update slot-install /srv/nclaw/apps/nclawzero-rootfs-new.tar.gz

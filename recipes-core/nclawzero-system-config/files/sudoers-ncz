@@ -1,0 +1,4 @@
+# NOPASSWD sudo for the operator account on nclawzero edge devices.
+# Applied uniformly across Pi + Jetson fleet. New flashes use ncz
+# (existing flashed devices retain pi until reflash).
+ncz ALL=(ALL:ALL) NOPASSWD: ALL

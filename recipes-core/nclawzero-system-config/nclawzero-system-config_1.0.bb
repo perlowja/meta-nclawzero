@@ -6,7 +6,8 @@
 # Bakes every in-place TYDEUS fix from scripts/jetson-rescue/ into the
 # image recipe so fresh flashes come up correctly on the first boot:
 #
-#   - sudoers NOPASSWD for the pi operator
+#   - sudoers NOPASSWD for the ncz operator (renamed from pi 2026-04-24;
+#     existing flashed devices retain pi until reflash)
 #   - logind IdleAction=ignore (no silent auto-power-off)
 #   - systemd-networkd DHCP defaults for eth* and wl*
 #   - wpa_supplicant-wlan0 client template
@@ -23,7 +24,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7cacdbeed46a0096b10"
 
 SRC_URI = " \
-    file://sudoers-pi \
+    file://sudoers-ncz \
     file://99-no-idle-poweroff.conf \
     file://10-wired.network \
     file://20-wlan.network \
@@ -63,7 +64,7 @@ pkg_postinst_ontarget:${PN} () {
 do_install() {
     # sudoers drop-in
     install -d -m 0750 ${D}${sysconfdir}/sudoers.d
-    install -m 0440 ${WORKDIR}/sudoers-pi ${D}${sysconfdir}/sudoers.d/90-nclawzero-pi
+    install -m 0440 ${WORKDIR}/sudoers-ncz ${D}${sysconfdir}/sudoers.d/90-nclawzero-ncz
 
     # logind drop-in
     install -d -m 0755 ${D}${sysconfdir}/systemd/logind.conf.d
@@ -102,7 +103,7 @@ do_install() {
 }
 
 FILES:${PN} = " \
-    ${sysconfdir}/sudoers.d/90-nclawzero-pi \
+    ${sysconfdir}/sudoers.d/90-nclawzero-ncz \
     ${sysconfdir}/systemd/logind.conf.d/99-no-idle-poweroff.conf \
     ${sysconfdir}/systemd/network/10-wired.network \
     ${sysconfdir}/systemd/network/20-wlan.network \

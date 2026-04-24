@@ -3,8 +3,9 @@
 #
 # First-boot service that:
 #   - Generates self-signed TLS cert for Weston RDP backend
-#   - Sets pi user password from /etc/nclawzero/initial-password (seeded
+#   - Sets ncz user password from /etc/nclawzero/initial-password (seeded
 #     at image build; default 'zeroclaw' if missing — CHANGE IN PROD)
+#     Falls back to legacy pi user on already-deployed pre-rename images.
 #   - Marks /var/lib/nclawzero/rdp-init.done to prevent re-run
 
 SUMMARY = "nclawzero first-boot RDP/TLS setup"

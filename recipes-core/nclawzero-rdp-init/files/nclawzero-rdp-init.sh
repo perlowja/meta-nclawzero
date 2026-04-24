@@ -3,7 +3,10 @@
 # nclawzero first-boot RDP/TLS setup
 #
 # - Generates /etc/weston/tls.cert + tls.key if missing (self-signed)
-# - Sets pi user password from /etc/nclawzero/initial-password
+# - Sets ncz user password from /etc/nclawzero/initial-password
+#   (was: pi; renamed 2026-04-24 — already-deployed pre-rename images
+#   still ship the legacy account, this script falls back if pi exists
+#   and ncz does not)
 # - Creates /var/lib/nclawzero/rdp-init.done sentinel (idempotent)
 
 set -euo pipefail
@@ -35,15 +38,23 @@ if [ ! -f "${CERT}" ] || [ ! -f "${KEY}" ]; then
     chown weston:weston "${KEY}" "${CERT}" 2>/dev/null || true
 fi
 
-# Seed pi user password
-if id pi >/dev/null 2>&1; then
+# Seed operator user password — prefer ncz (post-rename), fall back to pi
+# for backward compatibility with already-deployed legacy images.
+TARGET_USER=""
+if id ncz >/dev/null 2>&1; then
+    TARGET_USER=ncz
+elif id pi >/dev/null 2>&1; then
+    TARGET_USER=pi
+fi
+
+if [ -n "${TARGET_USER}" ]; then
     if [ -s "${PWFILE}" ]; then
         PW="$(tr -d '[:space:]' < "${PWFILE}")"
     else
         PW="zeroclaw"
     fi
-    echo "pi:${PW}" | chpasswd
-    echo "nclawzero-rdp-init: pi password set from ${PWFILE}"
+    echo "${TARGET_USER}:${PW}" | chpasswd
+    echo "nclawzero-rdp-init: ${TARGET_USER} password set from ${PWFILE}"
 fi
 
 touch "${DONE}"

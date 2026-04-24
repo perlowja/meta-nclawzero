@@ -27,11 +27,11 @@ DESCRIPTION = "Jetson Orin Nano Yocto image with clean systemd boot, plymouth \
     splash, xrdp-free posture (NoMachine installed post-boot), XFCE desktop \
     for interactive sessions, full CUDA 12.6 / TensorRT 10.3 / cuDNN 9.3 \
     stack, and ZeroClaw + NemoClaw agent runtime."
-LICENSE = "MIT"
+
+require recipes-core/images/nclawzero-image-common.inc
 
 COMPATIBLE_MACHINE = "(tegra)"
 
-inherit core-image
 inherit features_check
 REQUIRED_DISTRO_FEATURES = "x11"
 
@@ -55,6 +55,7 @@ IMAGE_INSTALL = " \
     packagegroup-xfce-extended \
     packagegroup-xfce-multimedia \
     kernel-modules \
+    ${NCLAWZERO_COMMON_INSTALL} \
 "
 
 IMAGE_INSTALL:append = " \
@@ -64,12 +65,6 @@ IMAGE_INSTALL:append = " \
     thunar-media-tags-plugin \
 "
 
-# --- nclawzero agent stack + system config ---------------------------------
-
-IMAGE_INSTALL:append = " \
-    packagegroup-nclawzero \
-    nclawzero-system-config \
-"
 # nclawzero-dt-overlays intentionally NOT in IMAGE_INSTALL — the broken
 # tegra-audio-graph-card driver is already disabled at kconfig level
 # (nclawzero-jetson-hw.cfg) so no overlay is needed. The recipe stays
@@ -121,7 +116,8 @@ IMAGE_INSTALL:append = " \
 # cuda class, DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL to avoid native-sysroot
 # libssl cross-link confusion). No Docker — per fleet doctrine
 # (project_tydeus + user direction 2026-04-24: "go on the metal").
-IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma nclawzero-storage-init nclawzero-update"
+# nclawzero-update + nclawzero-boot-provision come in via NCLAWZERO_COMMON_INSTALL.
+IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma nclawzero-storage-init"
 
 IMAGE_INSTALL:append = " \
     curl wget git rsync \
@@ -135,38 +131,7 @@ IMAGE_INSTALL:append = " \
     jq \
 "
 
-# --- Suppress unwanted recommends ------------------------------------------
-#
-# packagegroup-xfce-extended recommends NetworkManager + applet; we run
-# systemd-networkd instead and NetworkManager fails at boot because
-# /run/dbus/... service name is already claimed. Suppress the pull.
-# xfce4-pulseaudio-plugin is fine; pulseaudio itself stays.
-BAD_RECOMMENDATIONS += " \
-    networkmanager \
-    network-manager-applet \
-    modemmanager \
-"
-
-# --- Distro features (also set in local.conf for parse-time eligibility) --
-
-DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
-VIRTUAL-RUNTIME_init_manager = "systemd"
-VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
-
-IMAGE_LINGUAS = ""
-
-SYSTEMD_DEFAULT_TARGET = "multi-user.target"
-
 # Reserve headroom for CUDA (~3GB) + NoMachine + skills + workspace.
 IMAGE_ROOTFS_EXTRA_SPACE = "6291456"
-
-# Service users + pi login shell.
-# pi is in wheel group for sudoers-pi drop-in to apply.
-inherit extrausers
-EXTRA_USERS_PARAMS = " \
-    useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
-    useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
-    useradd -m -s /bin/bash -G sudo,wheel,docker,video,audio,input,plugdev -p '!' pi; \
-"
 
 IMAGE_FSTYPES:remove:tegra = "wic wic.gz wic.bmap"

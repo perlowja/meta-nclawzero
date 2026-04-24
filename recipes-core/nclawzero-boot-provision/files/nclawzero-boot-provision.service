@@ -1,0 +1,36 @@
+[Unit]
+# nclawzero-boot-provision — process operator-dropped sentinel files in
+# /boot/firmware (or /boot fallback) on first boot. Mirrors pi-gen
+# stage2/04-userconf + raspi-config first-boot patterns.
+#
+# Ordering rationale: must run BEFORE network.target/ssh.service so the
+# applied authorized_keys / wpa_supplicant config / ssh enable land
+# before any service that depends on them tries to start. We pin to
+# Before=network-pre.target for network configuration and add
+# Before=ssh.service so the ssh-enable + key install precede sshd.
+Description=nclawzero first-boot provisioning (sentinel processor)
+DefaultDependencies=no
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=network-pre.target ssh.service sshd.service wpa_supplicant.service
+ConditionPathIsDirectory=|/boot/firmware
+ConditionPathIsDirectory=|/boot
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# NCLAWZERO_BOOT_PROVISION_DIR can be overridden via drop-in.
+Environment=NCLAWZERO_BOOT_PROVISION_DIR=/boot/firmware
+Environment=NCZ_USER=ncz
+ExecStart=/usr/libexec/nclawzero/boot-provision.sh
+# Don't fail-loop the boot if the script returns nonzero — the script's
+# own error handling already logs each sentinel's outcome and self-masks
+# only on at least one success. A nonzero exit here just means we leave
+# the unit enabled for the next boot.
+SuccessExitStatus=0 1
+# Output goes to /var/log/nclawzero-boot-provision.log inside the script;
+# StandardOutput=journal makes the systemd-side concise.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target

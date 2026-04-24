@@ -20,9 +20,8 @@
 SUMMARY = "nclawzero edge AI agent image"
 DESCRIPTION = "Minimal console image with ZeroClaw AI agent runtime \
     and NemoClaw sandbox framework for edge/embedded deployment."
-LICENSE = "MIT"
 
-inherit core-image
+require recipes-core/images/nclawzero-image-common.inc
 
 COMPATIBLE_MACHINE = "(raspberrypi4-64|tegra)"
 
@@ -35,18 +34,9 @@ IMAGE_FEATURES += " \
 IMAGE_INSTALL = " \
     packagegroup-core-boot \
     packagegroup-core-full-cmdline \
-    packagegroup-nclawzero \
+    ${NCLAWZERO_COMMON_INSTALL} \
     kernel-modules \
 "
-
-# Headless — no locales / GUI
-IMAGE_LINGUAS = ""
-
-# systemd as init manager
-DISTRO_FEATURES:append = " systemd"
-DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
-VIRTUAL-RUNTIME_init_manager = "systemd"
-VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
 
 # Remove desktop/graphics features
 DISTRO_FEATURES:remove = "x11 wayland vulkan"
@@ -60,11 +50,3 @@ WKS_FILE:raspberrypi4-64 = "nclawzero-rpi.wks.in"
 
 # Reserve headroom for workspace, skills, npm cache
 IMAGE_ROOTFS_EXTRA_SPACE = "524288"
-
-# Service users created at image build time
-inherit extrausers
-EXTRA_USERS_PARAMS = " \
-    useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
-    useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
-    useradd -m -s /bin/bash -G sudo -p '!' pi; \
-"
