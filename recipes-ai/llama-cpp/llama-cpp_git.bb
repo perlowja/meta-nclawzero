@@ -91,9 +91,18 @@ do_install:append() {
 
 FILES:${PN} = " \
     ${bindir}/llama-* \
-    ${libdir}/libllama.so \
-    ${libdir}/libggml*.so \
+    ${libdir}/libllama*.so* \
+    ${libdir}/libggml*.so* \
+    ${libdir}/libmtmd*.so* \
 "
+
+# The internal shared libs (libggml-base.so.0, libllama-common.so.0,
+# libmtmd.so.0) don't have a versioned SONAME that bitbake recognises
+# as a standalone provider. Tell QA to stop complaining — they're
+# intentionally bundled inside the llama-cpp package.
+
+SOLIBS = ".so*"
+FILES_SOLIBSDEV = ""
 
 FILES:${PN}-dev = " \
     ${includedir}/llama.h \
@@ -106,4 +115,4 @@ FILES:${PN}-dev = " \
 
 # llama.cpp ships some binaries un-stripped for debugging; let the Yocto
 # strip step handle it.
-INSANE_SKIP:${PN} = "dev-so"
+INSANE_SKIP:${PN} = "dev-so file-rdeps"
