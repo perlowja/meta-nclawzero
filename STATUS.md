@@ -60,6 +60,8 @@ Think of it as building a PC from off-the-shelf parts at a big computer store ve
 
 Canary is the same PC build but with experimental-firmware board revisions and non-released driver builds in the mix. Conservative at least keeps you on the shipped-firmware, released-driver versions the part vendors themselves support.
 
+Even then — and this is the point the analogy is load-bearing for — pinning every part to a tagged, released version doesn't prevent random incompatibilities, hardware-interaction quirks, or emergent behavior when six vendors' tested parts meet each other inside one chassis for the first time. Dell tests its own integrations before shipping a certified OptiPlex; nobody tests *this* layer's integrations except the maintainer on his own Pis. Conservative narrows the variance; it does not eliminate it.
+
 ## Pathway: canary → conservative
 
 When the maintainer decides to cut a new conservative branch (typically: all three upstreams have cut new tagged releases since the last cut, or a security fix landed in one and the maintainer wants it pinned):
