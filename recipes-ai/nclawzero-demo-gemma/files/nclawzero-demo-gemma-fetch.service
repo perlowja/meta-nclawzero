@@ -1,0 +1,15 @@
+[Unit]
+Description=Fetch Gemma Unsloth GGUF for on-device inference demo
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/models/gemma.gguf
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/nclawzero/gemma-model.env
+ExecStart=/usr/libexec/nclawzero/fetch-gemma.sh
+TimeoutStartSec=900
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

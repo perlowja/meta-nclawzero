@@ -39,14 +39,20 @@ EXTRA_OECMAKE = " \
     -DBUILD_SHARED_LIBS=ON \
     -DGGML_NATIVE=OFF \
     -DGGML_OPENMP=ON \
-    -DGGML_CUDA=OFF \
     -DGGML_METAL=OFF \
     -DGGML_VULKAN=OFF \
     -DLLAMA_CURL=OFF \
     -DLLAMA_BUILD_EXAMPLES=OFF \
-    -DLLAMA_BUILD_SERVER=OFF \
     -DLLAMA_BUILD_TESTS=OFF \
 "
+
+# CPU-only baseline; Jetson overrides below enable CUDA offload (~3–5× tok/s
+# on Orin Nano for 7B Q4 GGUF). llama-server is always built — required by
+# zeroclaw [provider.local] + the Gemma 4 demo.
+EXTRA_OECMAKE:append = " -DLLAMA_BUILD_SERVER=ON"
+EXTRA_OECMAKE:append = " -DGGML_CUDA=OFF"
+EXTRA_OECMAKE:append:tegra = " -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=87"
+DEPENDS:append:tegra = " cuda-cudart cuda-nvcc"
 
 # For Pi 4 / Cortex-A72 / Jetson Orin targets, NEON is guaranteed. Explicit
 # compile flags for aarch64 optimisation.

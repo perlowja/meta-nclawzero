@@ -109,6 +109,9 @@ IMAGE_INSTALL:append = " \
 
 # --- Baseline utilities ----------------------------------------------------
 
+# llama.cpp for local Gemma 4 inference (zeroclaw routes to :8080)
+IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma"
+
 IMAGE_INSTALL:append = " \
     curl wget git rsync \
     htop \
@@ -152,7 +155,7 @@ inherit extrausers
 EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
     useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
-    useradd -m -s /bin/bash -G sudo,wheel,docker,video,audio,input,plugdev,netdev -p '!' pi; \
+    useradd -m -s /bin/bash -G sudo,wheel,docker,video,audio,input,plugdev -p '!' pi; \
 "
 
 IMAGE_FSTYPES:remove:tegra = "wic wic.gz wic.bmap"

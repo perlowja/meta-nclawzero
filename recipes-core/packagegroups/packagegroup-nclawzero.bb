@@ -6,7 +6,10 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Core agent stack + runtime
+# Core agent stack + runtime.
+# (nclawzero-rdp-init removed — was Weston-RDP TLS-cert setup; the
+#  Jetson image is headless-with-plymouth and NoMachine installs
+#  post-first-boot via nemoclaw-firstboot.)
 RDEPENDS:${PN} = " \
     zeroclaw-bin \
     zeroclaw-env \
@@ -15,7 +18,6 @@ RDEPENDS:${PN} = " \
     nodejs-bin \
     nemoclaw-firstboot \
     nemoclaw-core \
-    nclawzero-rdp-init \
     ca-certificates \
     openssh-sftp-server \
     openssh-sshd \
