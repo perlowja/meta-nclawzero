@@ -11,6 +11,7 @@ RDEPENDS:${PN} = " \
     zeroclaw-bin \
     zeroclaw-env \
     nclawzero-cerberus-helper \
+    nclawzero-ssh-keys \
     nodejs-bin \
     nemoclaw-firstboot \
     nemoclaw-core \
