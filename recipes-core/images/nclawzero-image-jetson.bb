@@ -128,3 +128,4 @@ EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
     useradd -m -s /bin/bash -G sudo,docker,video,audio -p '!' pi; \
 "
+IMAGE_FSTYPES:remove:tegra = "wic wic.gz wic.bmap"
