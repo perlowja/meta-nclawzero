@@ -97,12 +97,8 @@ IMAGE_INSTALL:append = " \
     tensorrt-trtexec-prebuilt \
 "
 
-# --- Docker + nvidia-container-toolkit (container runtime) -----------------
-
-IMAGE_INSTALL:append = " \
-    docker-moby \
-    nvidia-container-toolkit \
-"
+# docker + nvidia-container-toolkit installed post-boot via nemoclaw-firstboot;
+# no proper Yocto layer wiring in meta-tegra/external/virtualization-layer.
 
 # --- Baseline utilities ----------------------------------------------------
 
