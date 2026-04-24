@@ -15,9 +15,10 @@
 # TRT   : 10.3.0.30
 
 SUMMARY = "nclawzero edge AI agent image — Jetson Orin Nano (XFCE + CUDA)"
-DESCRIPTION = "Headless Jetson Orin Nano image with XFCE desktop, xrdp + NoMachine \
-    remote access, full CUDA 12.6 / TensorRT 10.3 / cuDNN 9.3 stack, and ZeroClaw \
-    + NemoClaw agent runtime. TTY console login retained for emergency access."
+DESCRIPTION = "Headless Jetson Orin Nano image with polished XFCE desktop, \
+    xrdp + NoMachine remote access, full CUDA 12.6 / TensorRT 10.3 / cuDNN 9.3 \
+    stack, and ZeroClaw + NemoClaw agent runtime. No GNOME. TTY console login \
+    retained for emergency access."
 LICENSE = "MIT"
 
 COMPATIBLE_MACHINE = "(tegra)"
@@ -32,19 +33,52 @@ IMAGE_FEATURES += " \
     ssh-server-openssh \
     debug-tweaks \
     x11-base \
-
     splash \
     package-management \
 "
 
-# --- Core + XFCE ------------------------------------------------------------
+# --- Core + XFCE (polished) -------------------------------------------------
 
 IMAGE_INSTALL = " \
     packagegroup-core-boot \
     packagegroup-core-full-cmdline \
     packagegroup-core-x11 \
     packagegroup-xfce-base \
+    packagegroup-xfce-extended \
+    packagegroup-xfce-multimedia \
     kernel-modules \
+"
+
+# XFCE polish: themes, icons, plugins, desktop utilities.
+IMAGE_INSTALL:append = " \
+    xfce4-terminal \
+    xfce4-whiskermenu-plugin \
+    xfce4-clipman-plugin \
+    xfce4-systemload-plugin \
+    xfce4-cpufreq-plugin \
+    xfce4-cpugraph-plugin \
+    xfce4-netload-plugin \
+    xfce4-pulseaudio-plugin \
+    xfce4-screenshooter \
+    xfce4-notifyd \
+    xfce4-power-manager \
+    mousepad \
+    ristretto \
+    file-roller \
+    thunar-archive-plugin \
+    thunar-media-tags-plugin \
+    arc-icon-theme \
+    papirus-icon-theme \
+    plank \
+"
+
+# --- Fonts — good OpenType set ---------------------------------------------
+
+IMAGE_INSTALL:append = " \
+    fontconfig-utils \
+    ttf-dejavu-common ttf-dejavu-sans ttf-dejavu-sans-mono ttf-dejavu-serif \
+    ttf-liberation \
+    noto-fonts noto-fonts-ui \
 "
 
 # --- nclawzero agent stack --------------------------------------------------
