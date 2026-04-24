@@ -18,7 +18,8 @@ SUMMARY = "nclawzero edge AI agent image — Jetson Orin Nano (XFCE + CUDA)"
 DESCRIPTION = "Headless Jetson Orin Nano image with polished XFCE desktop, \
     xrdp + NoMachine remote access, full CUDA 12.6 / TensorRT 10.3 / cuDNN 9.3 \
     stack, and ZeroClaw + NemoClaw agent runtime. No GNOME. TTY console login \
-    retained for emergency access."
+    retained for emergency access. Additional user-visible bits (themes, \
+    firefox, vlc) installed post-boot by nemoclaw-firstboot."
 LICENSE = "MIT"
 
 COMPATIBLE_MACHINE = "(tegra)"
@@ -37,7 +38,13 @@ IMAGE_FEATURES += " \
     package-management \
 "
 
-# --- Core + XFCE (polished) -------------------------------------------------
+# --- Core + XFCE ------------------------------------------------------------
+#
+# packagegroup-xfce-extended RRECOMMENDS all the XFCE goodies
+# (cpufreq, cpugraph, netload, systemload, clipman, diskperf, places, xkb,
+#  weather, fsguard, battery, mount, powermanager, timer, time-out, genmon,
+#  wavelan, eyes, datetime) plus all base components.
+# packagegroup-xfce-multimedia adds parole + pulseaudio-plugin.
 
 IMAGE_INSTALL = " \
     packagegroup-core-boot \
@@ -49,36 +56,21 @@ IMAGE_INSTALL = " \
     kernel-modules \
 "
 
-# XFCE polish: themes, icons, plugins, desktop utilities.
+# XFCE apps that packagegroup-xfce-base doesn't pull.
 IMAGE_INSTALL:append = " \
-    xfce4-terminal \
-    xfce4-whiskermenu-plugin \
-    xfce4-clipman-plugin \
-    xfce4-systemload-plugin \
-    xfce4-cpufreq-plugin \
-    xfce4-cpugraph-plugin \
-    xfce4-netload-plugin \
-    xfce4-pulseaudio-plugin \
-    xfce4-screenshooter \
-    xfce4-notifyd \
-    xfce4-power-manager \
     mousepad \
     ristretto \
-    file-roller \
     thunar-archive-plugin \
     thunar-media-tags-plugin \
-    arc-icon-theme \
-    papirus-icon-theme \
-    plank \
 "
 
-# --- Fonts — good OpenType set ---------------------------------------------
+# --- Fonts — OpenType + TrueType coverage ----------------------------------
 
 IMAGE_INSTALL:append = " \
-    fontconfig-utils \
-    ttf-dejavu-common ttf-dejavu-sans ttf-dejavu-sans-mono ttf-dejavu-serif \
+    ttf-dejavu \
     ttf-liberation \
-    noto-fonts noto-fonts-ui \
+    ttf-google-fira \
+    ttf-inconsolata \
 "
 
 # --- nclawzero agent stack --------------------------------------------------
@@ -87,8 +79,6 @@ IMAGE_INSTALL:append = " packagegroup-nclawzero"
 
 # --- Remote access ----------------------------------------------------------
 
-# xrdp: built from source, starts on :3389 at boot.
-# nemoclaw-firstboot: runs once at first boot to fetch+install NoMachine deb.
 IMAGE_INSTALL:append = " \
     xrdp \
     nemoclaw-firstboot \
@@ -98,7 +88,6 @@ IMAGE_INSTALL:append = " \
 
 IMAGE_INSTALL:append = " \
     cuda-libraries \
-    cuda-runtime \
     cuda-nvcc \
     cuda-cudart \
     cuda-command-line-tools \
@@ -108,48 +97,42 @@ IMAGE_INSTALL:append = " \
     tensorrt-trtexec-prebuilt \
 "
 
-# --- JetPack-equivalent 3rd-party packages ----------------------------------
+# --- Docker + nvidia-container-toolkit (container runtime) -----------------
 
 IMAGE_INSTALL:append = " \
-    firefox \
-    vlc \
-    gstreamer1.0 \
-    gstreamer1.0-plugins-base \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-libav \
-    curl wget git rsync \
-    htop iotop iftop \
-    vim nano \
-    unzip zip tar \
-    sudo \
-"
-
-# --- NVIDIA container / docker integration ---------------------------------
-
-IMAGE_INSTALL:append = " \
-    docker-ce \
+    docker-moby \
     nvidia-container-toolkit \
 "
 
-# --- Distro features --------------------------------------------------------
+# --- Baseline utilities ----------------------------------------------------
 
-DISTRO_FEATURES:append = " x11 systemd opengl vulkan virtualization pam"
+IMAGE_INSTALL:append = " \
+    curl wget git rsync \
+    htop \
+    vim nano \
+    unzip zip tar \
+    sudo \
+    bash \
+    tmux \
+    tree \
+    jq \
+"
+
+# --- Distro features (also set in local.conf for parse-time eligibility) --
+
 DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
 VIRTUAL-RUNTIME_init_manager = "systemd"
 VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
 
-# Headless — no locales installed, but keep default terminal charset.
 IMAGE_LINGUAS = ""
 
-# Boot straight to multi-user; xrdp will spawn XFCE per RDP connection.
-# Retain getty@tty1 for physical-console emergency login.
+# Boot straight to multi-user; xrdp spawns Xorg per RDP connection.
 SYSTEMD_DEFAULT_TARGET = "multi-user.target"
 
-# Reserve headroom for CUDA (~3GB), skills data, npm cache, workspace.
+# Reserve headroom for CUDA (~3GB) + NoMachine + skills + workspace.
 IMAGE_ROOTFS_EXTRA_SPACE = "6291456"
 
-# Service users + pi login shell (pattern inherited from Pi images).
+# Service users + pi login shell.
 inherit extrausers
 EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
