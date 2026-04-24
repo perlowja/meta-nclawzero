@@ -21,6 +21,22 @@ default_temperature = 0.7
 # API keys resolved from /etc/zeroclaw/env at daemon start. Only
 # TOGETHER_API_KEY is required; all others are optional fallbacks.
 
+# --- Local inference provider (Gemma via llama-server) ----------------
+# Wired for the Phil Lawrence / NVIDIA Jetson demo: local Gemma GGUF
+# served by llama-server-gemma.service on :8080, OpenAI-compat schema.
+# See nclawzero-demo-gemma recipe for the service + fetch unit.
+#
+# NOT set as default_provider by default (Together stays the fleet
+# default). During a demo, flip at runtime with:
+#     zeroclaw config set default_provider gemma-local
+# Or add to [reliability].fallback_providers to graceful-degrade when
+# Together is unreachable.
+
+[providers.models.gemma-local]
+name = "openai"
+baseurl = "http://127.0.0.1:8080/v1"
+api_key = "sk-none"
+
 # --- Runtime ----------------------------------------------------------
 # Native subprocess execution — no Docker wrapping of shell commands.
 # Per-skill sandboxing still happens via the Docker backend below when

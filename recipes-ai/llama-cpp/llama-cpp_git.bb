@@ -33,6 +33,21 @@ S = "${WORKDIR}/git"
 
 inherit cmake
 
+# Inherit meta-tegra's cuda class — exports CUDA_TOOLKIT_ROOT, CUDACXX,
+# CUDA_NVCC_EXECUTABLE, adds cuda-cudart + cuda-nvcc to DEPENDS via
+# DEPENDS:append:cuda, and wires cmake's CMAKE_CUDA_* toolchain into the
+# generated toolchain.cmake. The class only affects builds when "cuda" is
+# in OVERRIDES (which meta-tegra's machine .conf files set on Jetson).
+# On non-Tegra targets this recipe is not pulled into any image, so
+# parse-time cost is zero there.
+inherit cuda
+
+# Gate the recipe to Tegra machines explicitly. llama-cpp-cuda is overkill
+# on ARMv7/ARMv8-no-CUDA targets; those can use llama-cpp-cpu (future split
+# if needed). Keeps non-Tegra builds from confusedly parsing this recipe.
+COMPATIBLE_MACHINE = "(tegra)"
+
+
 
 EXTRA_OECMAKE = " \
     -DCMAKE_BUILD_TYPE=Release \
@@ -51,8 +66,13 @@ EXTRA_OECMAKE = " \
 # zeroclaw [provider.local] + the Gemma 4 demo.
 EXTRA_OECMAKE:append = " -DLLAMA_BUILD_SERVER=ON"
 EXTRA_OECMAKE:append = " -DGGML_CUDA=OFF"
+
+# Target sm_87 (Ampere — Orin Nano/Super/NX). meta-tegra's cuda class
+# (inherited above) handles the CUDA_TOOLKIT_ROOT / CUDACXX / nvcc path
+# resolution automatically. Thor needs sm_100+ once meta-tegra adds
+# Thor machines.
 EXTRA_OECMAKE:append:tegra = " -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=87"
-DEPENDS:append:tegra = " cuda-cudart cuda-nvcc"
+CUDA_ARCHITECTURES = "87"
 
 # For Pi 4 / Cortex-A72 / Jetson Orin targets, NEON is guaranteed. Explicit
 # compile flags for aarch64 optimisation.
