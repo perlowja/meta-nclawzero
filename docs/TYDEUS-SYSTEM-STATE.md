@@ -109,3 +109,37 @@ demo readiness on it.
 - Root password set; sshd pubkey-only for root.
 - pi user has NOPASSWD sudo.
 - All rescue scripts on the NCLAWRESCUE USB for further triage.
+
+## 2026-04-24 follow-up #2 — PCIe NIC + WiFi drivers are the actual missing piece
+
+Deeper investigation after the DTB-swap attempt revealed that the DTB is a
+red herring. The Orin Nano Super's onboard 1GbE is NOT the Tegra MGBE/EQOS —
+it's a separate Realtek RTL8168 chip on the PCIe bus. And the M.2 Key-E slot
+has a Realtek RTL8852CE WiFi+BT combo card present.
+
+lspci evidence:
+- `0008:01:00.0 [10ec:8168]` Class 0x020000 (Ethernet controller, RTL8168)
+- `0001:01:00.0 [10ec:c822]` Class 0x0280 (WiFi, RTL8852CE combo)
+
+Both devices enumerate cleanly at boot but have no driver to bind:
+- `r8169.ko` — NOT in /lib/modules/<kver> on this Yocto image
+- `rtw89*.ko` (+ rtw89_8852ce) — NOT in /lib/modules/<kver> on this Yocto image
+
+### Recipe work required in meta-nclawzero
+
+Add these kernel modules to the Yocto build:
+- `kernel-module-r8169` (for RTL8168 onboard ethernet)
+- `kernel-module-realtek` (PHY driver, already loadable but confirm it's shipped)
+- `kernel-module-rtw89-pci` + `kernel-module-rtw89-8852ce` + `kernel-module-rtw89-core` (RTL8852CE WiFi)
+- `wireless-regdb` (regulatory.db; silences cfg80211 warning)
+- `linux-firmware-rtl-nic` (rtl8156b-2.fw for USB-Eth offloads, already hand-installed on this TYDEUS)
+- `iw` + `wpa-supplicant` + `hostapd` (user-space tools for WiFi)
+- `dtc` (device-tree-compiler, so on-device investigation is easier)
+
+### Current TYDEUS status post-discovery
+
+- USB-Ethernet (Plugable AX88179) at 192.168.207.64: WORKING
+- Onboard RTL8168 PCIe ethernet: hardware present, no driver loaded — RECIPE GAP
+- RTL8852CE WiFi+BT: hardware present, no driver loaded — RECIPE GAP
+- rtl8156b-2.fw firmware hand-installed (silences dmesg warning)
+- NetworkManager / xrdp / zram.service disabled (were failing every boot)
