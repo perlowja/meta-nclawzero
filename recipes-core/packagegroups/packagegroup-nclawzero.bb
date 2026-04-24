@@ -53,9 +53,9 @@ RDEPENDS:${PN} += " \
     python3-virtualenv \
 "
 
-# Process / system monitoring
+# Process / system monitoring.
+# (zram removed — poky ships SysV init-only, fails on systemd boot.)
 RDEPENDS:${PN} += " \
-    zram \
     htop \
     iotop \
     iftop \

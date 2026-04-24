@@ -1,0 +1,5 @@
+d /var/lib/zeroclaw            0750 zeroclaw zeroclaw - -
+d /var/lib/zeroclaw/workspace  0770 zeroclaw zeroclaw - -
+d /var/lib/nemoclaw            0750 nemoclaw nemoclaw - -
+d /etc/zeroclaw                0755 zeroclaw zeroclaw - -
+L /etc/zeroclaw/workspace      -    -        -        - /var/lib/zeroclaw/workspace

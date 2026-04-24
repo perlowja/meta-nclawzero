@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=nclawzero
+Description=nclawzero boot splash — script plugin, pure-text logo
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/nclawzero
+ScriptFile=/usr/share/plymouth/themes/nclawzero/nclawzero.script

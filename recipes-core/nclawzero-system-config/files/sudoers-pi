@@ -1,0 +1,3 @@
+# NOPASSWD sudo for the operator account on nclawzero edge devices.
+# Applied uniformly across Pi + Jetson fleet. Matches clawpi/zeropi.
+pi ALL=(ALL:ALL) NOPASSWD: ALL

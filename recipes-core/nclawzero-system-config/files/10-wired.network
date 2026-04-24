@@ -1,0 +1,16 @@
+[Match]
+Name=eth* enp* enx*
+
+[Network]
+DHCP=yes
+LinkLocalAddressing=ipv4
+MulticastDNS=yes
+LLMNR=yes
+
+[DHCPv4]
+UseDomains=yes
+UseHostname=false
+RouteMetric=100
+
+[DHCP]
+ClientIdentifier=mac

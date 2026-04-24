@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "nvidia,tegra234", "nvidia,p3767-0005", "nvidia,p3767";
+    overlay-name = "nclawzero: disable broken tegra186-audio-graph-card";
+
+    fragment@0 {
+        target-path = "/sound";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+};

@@ -1,0 +1,14 @@
+# nclawzero WiFi client template.
+# Copy this file to /etc/wpa_supplicant/wpa_supplicant-wlan0.conf (mode 0600),
+# replace SSID / PSK, then:
+#   systemctl enable --now wpa_supplicant@wlan0.service
+#   systemctl enable --now systemd-networkd.service
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=wheel
+update_config=1
+country=US
+
+network={
+    ssid="your-ssid-here"
+    psk="your-wpa2-psk-here"
+    key_mgmt=WPA-PSK
+}

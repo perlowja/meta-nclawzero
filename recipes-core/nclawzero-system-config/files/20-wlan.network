@@ -1,0 +1,14 @@
+[Match]
+Name=wl*
+
+[Network]
+DHCP=yes
+LinkLocalAddressing=ipv4
+MulticastDNS=yes
+LLMNR=yes
+IgnoreCarrierLoss=3s
+
+[DHCPv4]
+UseDomains=yes
+UseHostname=false
+RouteMetric=600

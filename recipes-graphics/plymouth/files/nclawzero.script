@@ -1,0 +1,74 @@
+# nclawzero plymouth boot script
+# Design: Paradox 4.5 / dBASE V retro aesthetic per zterm v0.3 doctrine —
+# but adapted for framebuffer: centered wordmark + cyan progress dots.
+
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
+
+# ---- Background: solid near-black ---------------------------------------
+Window.SetBackgroundTopColor(0.08, 0.08, 0.10);
+Window.SetBackgroundBottomColor(0.05, 0.05, 0.07);
+
+# ---- Wordmark ("nclawzero") centered, large ----------------------------
+wordmark = Image.Text("nclawzero", 0.85, 0.85, 1.00, 64, "Sans Bold");
+wordmark_sprite = Sprite(wordmark);
+wordmark_sprite.SetX((screen_w - wordmark.GetWidth()) / 2);
+wordmark_sprite.SetY(screen_h * 0.40);
+wordmark_sprite.SetZ(10);
+
+# ---- Tagline ----------------------------------------------------------
+tagline = Image.Text("edge agent runtime", 0.45, 0.50, 0.55, 16, "Sans");
+tagline_sprite = Sprite(tagline);
+tagline_sprite.SetX((screen_w - tagline.GetWidth()) / 2);
+tagline_sprite.SetY(screen_h * 0.40 + wordmark.GetHeight() + 8);
+tagline_sprite.SetZ(10);
+
+# ---- Progress dots (5 dots, one active) --------------------------------
+dot_active   = Image.Text("●", 0.20, 0.70, 0.90, 14, "Sans Bold");
+dot_inactive = Image.Text("●", 0.15, 0.17, 0.22, 14, "Sans Bold");
+dots = [];
+dot_count = 5;
+dot_spacing = 22;
+dot_y = screen_h * 0.60;
+for (i = 0; i < dot_count; i++) {
+    dot = Sprite(dot_inactive);
+    dot.SetX((screen_w - (dot_count * dot_spacing)) / 2 + i * dot_spacing);
+    dot.SetY(dot_y);
+    dot.SetZ(10);
+    dots[i] = dot;
+}
+
+# ---- Animation: cycle which dot is "active" every ~150ms ---------------
+progress = 0;
+fun refresh_callback() {
+    progress++;
+    active_idx = (progress / 5) % dot_count;
+    for (i = 0; i < dot_count; i++) {
+        if (i == active_idx) {
+            dots[i].SetImage(dot_active);
+        } else {
+            dots[i].SetImage(dot_inactive);
+        }
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# ---- Message handler (plymouth display-message) ------------------------
+msg_sprite = null;
+fun message_callback(text) {
+    if (msg_sprite) msg_sprite = null;
+    m = Image.Text(text, 0.55, 0.55, 0.65, 14, "Sans");
+    msg_sprite = Sprite(m);
+    msg_sprite.SetX((screen_w - m.GetWidth()) / 2);
+    msg_sprite.SetY(screen_h * 0.68);
+    msg_sprite.SetZ(10);
+}
+Plymouth.SetMessageFunction(message_callback);
+
+# ---- Hide-boot-splash: fade wordmark out --------------------------------
+fun quit_callback() {
+    wordmark_sprite.SetOpacity(0);
+    tagline_sprite.SetOpacity(0);
+    for (i = 0; i < dot_count; i++) dots[i].SetOpacity(0);
+}
+Plymouth.SetQuitFunction(quit_callback);

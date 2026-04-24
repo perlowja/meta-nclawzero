@@ -1,0 +1,12 @@
+[Unit]
+Description=nclawzero thermal + cpufreq tuning for sustained inference
+After=multi-user.target
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpufreq
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/nclawzero/thermal-tune.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
