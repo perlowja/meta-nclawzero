@@ -134,7 +134,7 @@ IMAGE_INSTALL:append = " \
 
 # --- Distro features --------------------------------------------------------
 
-DISTRO_FEATURES:append = " x11 systemd opengl vulkan virtualization"
+DISTRO_FEATURES:append = " x11 systemd opengl vulkan virtualization pam"
 DISTRO_FEATURES_BACKFILL_CONSIDERED:append = " sysvinit"
 VIRTUAL-RUNTIME_init_manager = "systemd"
 VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
