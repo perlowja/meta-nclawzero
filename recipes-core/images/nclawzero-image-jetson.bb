@@ -109,8 +109,10 @@ IMAGE_INSTALL:append = " \
 
 # --- Baseline utilities ----------------------------------------------------
 
-# llama.cpp for local Gemma 4 inference (zeroclaw routes to :8080)
-IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma"
+# Gemma 4 E4B demo stack (container-based — see nclawzero-demo-gemma).
+# Native llama-cpp build deferred until Tegra GPU passthrough works without
+# nvidia-container-toolkit; for now we pull ghcr.io/ggml-org/llama.cpp:server-cuda.
+IMAGE_INSTALL:append = " nclawzero-demo-gemma nclawzero-storage-init"
 
 IMAGE_INSTALL:append = " \
     curl wget git rsync \

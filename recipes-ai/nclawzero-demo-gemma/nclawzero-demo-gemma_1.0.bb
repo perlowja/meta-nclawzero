@@ -43,7 +43,7 @@ SYSTEMD_SERVICE:${PN} = " \
 "
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
-RDEPENDS:${PN} = "curl llama-cpp"
+RDEPENDS:${PN} = "curl rsync sshpass docker-moby"
 
 do_install() {
     install -d -m 0755 ${D}${libexecdir}/nclawzero

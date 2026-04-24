@@ -1,14 +1,15 @@
 [Unit]
-Description=Fetch Gemma Unsloth GGUF for on-device inference demo
-After=network-online.target
+Description=Fetch Gemma-4-E4B GGUF for on-device inference demo
+After=network-online.target srv-nclaw.mount
 Wants=network-online.target
-ConditionPathExists=!/var/lib/models/gemma.gguf
+RequiresMountsFor=/srv/nclaw
+ConditionPathExists=!/srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf
 
 [Service]
 Type=oneshot
 EnvironmentFile=-/etc/nclawzero/gemma-model.env
 ExecStart=/usr/libexec/nclawzero/fetch-gemma.sh
-TimeoutStartSec=900
+TimeoutStartSec=1800
 RemainAfterExit=yes
 
 [Install]

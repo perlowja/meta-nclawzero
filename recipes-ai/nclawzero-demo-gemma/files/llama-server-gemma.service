@@ -1,26 +1,38 @@
 [Unit]
-Description=llama.cpp HTTP /v1 server for Gemma (zeroclaw local provider)
-After=nclawzero-demo-gemma-fetch.service network-online.target
-Wants=nclawzero-demo-gemma-fetch.service
-ConditionPathExists=/var/lib/models/gemma.gguf
+Description=llama.cpp HTTP /v1 server for Gemma-4-E4B (Docker container)
+After=docker.service srv-nclaw.mount network-online.target
+Requires=docker.service
+ConditionPathExists=/srv/nclaw/models/gemma-4-E4B-it-Q4_K_M.gguf
 
 [Service]
 Type=exec
-EnvironmentFile=-/etc/nclawzero/gemma-model.env
-# -c 4096 ctx; --n-gpu-layers 99 lets CUDA offload as many layers as VRAM allows
-ExecStart=/usr/bin/llama-server \
-    --model /var/lib/models/gemma.gguf \
-    --host 127.0.0.1 \
-    --port 8080 \
-    -c 4096 \
-    --n-gpu-layers 99
-Restart=on-failure
+Restart=always
 RestartSec=5s
-# Memory hardening — the demo-critical zeroclaw 5MB RAM claim lives or dies
-# by keeping this process disciplined. Cap at 6GB (leaves ~2GB headroom on
-# an 8GB Orin Nano Super).
-MemoryMax=6G
-CPUQuota=95%
+ExecStartPre=-/usr/bin/docker rm -f llama-server-gemma
+ExecStart=/usr/bin/docker run --name llama-server-gemma --rm \
+    --device /dev/nvgpu \
+    --device /dev/nvhost-power-gpu \
+    --device /dev/nvmap \
+    --device /dev/nvsciipc \
+    -v /usr/lib/libcuda.so:/usr/lib/aarch64-linux-gnu/libcuda.so:ro \
+    -v /usr/lib/libcuda.so.1:/usr/lib/aarch64-linux-gnu/libcuda.so.1:ro \
+    -v /usr/lib/libcuda.so.1.1:/usr/lib/aarch64-linux-gnu/libcuda.so.1.1:ro \
+    -v /usr/local/cuda-12.6/lib:/usr/local/cuda-12.6/lib:ro \
+    -v /srv/nclaw/models:/models:ro \
+    -e LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib:/usr/lib/aarch64-linux-gnu \
+    -p 8081:8081 \
+    ghcr.io/ggml-org/llama.cpp:server-cuda \
+    --model /models/gemma-4-E4B-it-Q4_K_M.gguf \
+    --alias gemma4-consult \
+    --n-gpu-layers 99 \
+    --ctx-size 32768 \
+    --parallel 8 \
+    --flash-attn on \
+    -ctk q8_0 -ctv q8_0 \
+    --no-mmap \
+    --temp 0.65 --top-p 0.9 --repeat-penalty 1.1 \
+    -n 4096 \
+    --host 0.0.0.0 --port 8081
 
 [Install]
 WantedBy=multi-user.target
