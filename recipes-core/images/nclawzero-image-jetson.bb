@@ -101,10 +101,17 @@ IMAGE_INSTALL:append = " \
 
 # --- Firmware (no broken drivers: every enabled config has matching fw) -----
 
+# Firmware (no broken drivers: every enabled kernel CONFIG has matching fw)
+#   - linux-firmware-rtl-nic:  rtl_nic/* (covers onboard R8169 + USB r8152/r8153 + r8156b)
+#   - linux-firmware-rtl8822:  rtw88/rtw8822*.bin + rtl_bt/rtl8822*.bin + rtlwifi/*
+#                              (WiFi firmware + Bluetooth combo firmware)
+#   - wireless-regdb-static:   regulatory.db (required by any CFG80211 driver)
+#   - bluez5:                  userspace BT stack (bluetoothctl, hciconfig, etc.)
 IMAGE_INSTALL:append = " \
     linux-firmware-rtl-nic \
     linux-firmware-rtl8822 \
     wireless-regdb-static \
+    bluez5 \
 "
 
 # --- Baseline utilities ----------------------------------------------------
@@ -114,7 +121,7 @@ IMAGE_INSTALL:append = " \
 # cuda class, DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL to avoid native-sysroot
 # libssl cross-link confusion). No Docker — per fleet doctrine
 # (project_tydeus + user direction 2026-04-24: "go on the metal").
-IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma nclawzero-storage-init"
+IMAGE_INSTALL:append = " llama-cpp nclawzero-demo-gemma nclawzero-storage-init nclawzero-update"
 
 IMAGE_INSTALL:append = " \
     curl wget git rsync \
