@@ -23,14 +23,12 @@ HOMEPAGE = "https://github.com/NVIDIA/NemoClaw"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1f293dba04bfaa7b92e9480eed656511"
 
-# Track upstream main HEAD at every build (canary posture — see
-# STATUS.md in the layer root). Each rebuild pulls whatever main
-# resolves to at that moment. First-boot still does an online
-# fetch+reset on top of this for devices flashed long after build.
-# On the conservative/* branches this is replaced with a pinned SHA
-# (latest tagged upstream release); main stays on AUTOREV.
-SRCREV = "${AUTOREV}"
-PV = "0.1+git${SRCPV}"
+# Pinned to upstream v0.0.24 (latest tagged release as of 2026-04-24).
+# Conservative posture on this branch — see STATUS.md in the layer root.
+# When NVIDIA/NemoClaw cuts a newer tagged release and this branch gets
+# rolled forward, replace the SHA below. main stays on AUTOREV.
+SRCREV = "347f772cbf433f8f0345dc73b3649216db57182a"
+PV = "0.0.24+git${SRCPV}"
 
 SRC_URI = "git://github.com/NVIDIA/NemoClaw.git;branch=main;protocol=https"
 
