@@ -21,7 +21,7 @@ require nclawzero-image-jetson.bb
 # silently emits a "Function do_image_wic doesnt exist" warning and no
 # .wic artifact is produced. The anonymous-python below restores
 # IMAGE_FSTYPES at runtime, but by then it is too late for the inherit.
-inherit image-wic
+inherit image_types_wic
 
 SUMMARY = "nclawzero Jetson image (dual-slot WIC — A/B capable)"
 DESCRIPTION = "Dual-slot A/B-ready SD image. Shares all packages with \
