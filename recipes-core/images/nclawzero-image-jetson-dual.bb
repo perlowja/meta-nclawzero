@@ -14,6 +14,15 @@
 
 require nclawzero-image-jetson.bb
 
+# Force-inherit the wic image class. The parent strips wic from
+# IMAGE_FSTYPES via :remove:tegra at parse time, which prevents the
+# conditional inherit inside image.bbclass from pulling image-wic.bbclass.
+# Without this explicit inherit, do_image_wic is never defined; bitbake
+# silently emits a "Function do_image_wic doesnt exist" warning and no
+# .wic artifact is produced. The anonymous-python below restores
+# IMAGE_FSTYPES at runtime, but by then it is too late for the inherit.
+inherit image-wic
+
 SUMMARY = "nclawzero Jetson image (dual-slot WIC — A/B capable)"
 DESCRIPTION = "Dual-slot A/B-ready SD image. Shares all packages with \
     nclawzero-image-jetson; differs in partition layout (two rootfs slots \
