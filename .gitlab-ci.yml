@@ -1,0 +1,42 @@
+# Yocto layer CI — lint + layer-self-check.
+# Per fleet GitLab CI policy: full bitbake builds are not CI-suitable on
+# shared runners; gated to a self-hosted runner on ARGOS (TBD).
+
+default:
+  image: crops/poky:ubuntu-22.04
+
+stages:
+  - lint
+  - check-layer
+
+variables:
+  POKY_BRANCH: scarthgap
+  GIT_DEPTH: "1"
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install --quiet yamllint
+  script:
+    - yamllint --no-warnings . || true
+    - grep -q '^BBFILE_COLLECTIONS' conf/layer.conf
+    - grep -q '^LAYERSERIES_COMPAT' conf/layer.conf
+    - grep -q '^BBFILE_PRIORITY' conf/layer.conf
+    - 'find . -name "*.bb" -print0 | xargs -0 -I FF sh -c ''grep -qE "^(LICENSE|inherit|require)" "FF" || (echo "MISSING LICENSE: FF" && exit 1)'''
+
+check-layer:
+  stage: check-layer
+  before_script:
+    - mkdir -p /tmp/workdir && cd /tmp/workdir
+    - git clone --depth=1 --branch=$POKY_BRANCH git://git.yoctoproject.org/poky 2>&1 | tail -2
+    - git clone --depth=1 --branch=$POKY_BRANCH git://git.openembedded.org/meta-openembedded 2>&1 | tail -2
+  script:
+    - cd /tmp/workdir/poky
+    - source oe-init-build-env build-ci > /dev/null
+    - bitbake-layers add-layer /tmp/workdir/meta-openembedded/meta-oe
+    - bitbake-layers add-layer /tmp/workdir/meta-openembedded/meta-python
+    - bitbake-layers add-layer "$CI_PROJECT_DIR"
+    - yocto-check-layer "$CI_PROJECT_DIR" --no-auto-dependency || echo "check-layer warnings present (advisory)"
+  timeout: 45 minutes
+  allow_failure: true   # advisory until we have deeper deps

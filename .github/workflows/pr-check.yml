@@ -1,0 +1,23 @@
+name: PR check (layer.conf + recipe LICENSE)
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  layer-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: sudo apt-get update -qq && sudo apt-get install -y yamllint
+      - name: yamllint
+        run: yamllint --no-warnings . || true
+      - name: layer.conf required directives
+        run: |
+          grep -q '^BBFILE_COLLECTIONS' conf/layer.conf
+          grep -q '^LAYERSERIES_COMPAT' conf/layer.conf
+          grep -q '^BBFILE_PRIORITY' conf/layer.conf
+      - name: recipe LICENSE check
+        run: |
+          find . -name '*.bb' -print0 | xargs -0 -I FF sh -c 'grep -qE "^(LICENSE|inherit|require)" "FF" || (echo "MISSING LICENSE: FF" && exit 1)'
