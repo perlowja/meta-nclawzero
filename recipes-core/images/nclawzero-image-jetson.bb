@@ -134,4 +134,8 @@ IMAGE_INSTALL:append = " \
 # Reserve headroom for CUDA (~3GB) + NoMachine + skills + workspace.
 IMAGE_ROOTFS_EXTRA_SPACE = "6291456"
 
-IMAGE_FSTYPES:remove:tegra = "wic wic.gz wic.bmap"
+# wic is removed by default for tegraflash-only single-slot images. The
+# dual-slot variant (nclawzero-image-jetson-dual.bb) sets NCZ_NEEDS_WIC=1
+# BEFORE the require to opt out of this removal, since it ships an A/B SD
+# layout that needs the .wic + .wic.bmap artifacts.
+IMAGE_FSTYPES:remove:tegra = "${@'' if d.getVar('NCZ_NEEDS_WIC') == '1' else 'wic wic.gz wic.bmap'}"

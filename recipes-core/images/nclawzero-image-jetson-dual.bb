@@ -12,6 +12,10 @@
 # devices. After first boot, slot B is empty ext4 ready for
 # `nclawzero-update slot-install <newer-rootfs.tar.gz>`.
 
+# Opt out of the parents IMAGE_FSTYPES:remove:tegra wic strip — must be
+# set BEFORE the require so the parent recipes conditional :remove sees it.
+NCZ_NEEDS_WIC = "1"
+
 require nclawzero-image-jetson.bb
 
 # Force-inherit the wic image class. The parent strips wic from
