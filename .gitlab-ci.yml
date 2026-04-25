@@ -1,9 +1,7 @@
-# Yocto layer CI — lint + layer-self-check.
+# Yocto layer CI — lint (shared runner) + check-layer (self-hosted ARGOS).
 # Per fleet GitLab CI policy: full bitbake builds are not CI-suitable on
-# shared runners; gated to a self-hosted runner on ARGOS (TBD).
-
-default:
-  image: crops/poky:ubuntu-22.04
+# shared runners; check-layer runs on the self-hosted ARGOS runner where
+# Yocto build deps are already in place.
 
 stages:
   - lint
@@ -27,16 +25,19 @@ lint:
 
 check-layer:
   stage: check-layer
+  tags:
+    - yocto
   before_script:
-    - mkdir -p /tmp/workdir && cd /tmp/workdir
-    - git clone --depth=1 --branch=$POKY_BRANCH git://git.yoctoproject.org/poky 2>&1 | tail -2
-    - git clone --depth=1 --branch=$POKY_BRANCH git://git.openembedded.org/meta-openembedded 2>&1 | tail -2
+    - mkdir -p /tmp/yocto-ci && cd /tmp/yocto-ci
+    - if [ ! -d poky ]; then git clone --depth=1 --branch=$POKY_BRANCH git://git.yoctoproject.org/poky 2>&1 | tail -2; else cd poky && git fetch --depth=1 origin $POKY_BRANCH && git reset --hard origin/$POKY_BRANCH && cd ..; fi
+    - if [ ! -d meta-openembedded ]; then git clone --depth=1 --branch=$POKY_BRANCH git://git.openembedded.org/meta-openembedded 2>&1 | tail -2; else cd meta-openembedded && git fetch --depth=1 origin $POKY_BRANCH && git reset --hard origin/$POKY_BRANCH && cd ..; fi
   script:
-    - cd /tmp/workdir/poky
+    - cd /tmp/yocto-ci/poky
+    - rm -rf build-ci
     - source oe-init-build-env build-ci > /dev/null
-    - bitbake-layers add-layer /tmp/workdir/meta-openembedded/meta-oe
-    - bitbake-layers add-layer /tmp/workdir/meta-openembedded/meta-python
+    - bitbake-layers add-layer /tmp/yocto-ci/meta-openembedded/meta-oe
+    - bitbake-layers add-layer /tmp/yocto-ci/meta-openembedded/meta-python
     - bitbake-layers add-layer "$CI_PROJECT_DIR"
     - yocto-check-layer "$CI_PROJECT_DIR" --no-auto-dependency || echo "check-layer warnings present (advisory)"
   timeout: 45 minutes
-  allow_failure: true   # advisory until we have deeper deps
+  allow_failure: true
