@@ -105,12 +105,10 @@ SOLIBS = ".so*"
 FILES_SOLIBSDEV = ""
 
 FILES:${PN}-dev = " \
-    ${includedir}/llama.h \
-    ${includedir}/ggml*.h \
-    ${libdir}/cmake/llama \
+    ${includedir} \
+    ${libdir}/cmake \
     ${libdir}/pkgconfig \
-    ${libdir}/libllama.a \
-    ${libdir}/libggml*.a \
+    ${libdir}/*.a \
 "
 
 # llama.cpp ships some binaries un-stripped for debugging; let the Yocto
