@@ -87,6 +87,10 @@ do_install:append() {
     if [ -d ${D}${libdir}/pkgconfig ]; then
         sed -i "s|${STAGING_DIR_HOST}||g" ${D}${libdir}/pkgconfig/*.pc 2>/dev/null || true
     fi
+    # llama.cpp installs convert_hf_to_gguf.py — Python conversion utility
+    # not needed in image (we ship pre-converted GGUF). Drop to avoid the
+    # installed-vs-shipped QA error.
+    rm -f ${D}${bindir}/convert_hf_to_gguf.py
 }
 
 FILES:${PN} = " \
