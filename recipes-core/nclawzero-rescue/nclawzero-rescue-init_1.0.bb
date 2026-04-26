@@ -145,10 +145,14 @@ do_install() {
     install -d -m 0700 ${D}/root/.ssh
     install -m 0600 ${WORKDIR}/authorized_keys ${D}/root/.ssh/authorized_keys
 
-    # Pseudo-fs mountpoints + writable runtime dirs.  busybox-init
-    # (when used) and our /init both expect these to exist.
+    # Pseudo-fs mountpoints (mounted by /init at boot — our init script
+    # creates /tmp and /run as tmpfs at boot too).  Just need the empty
+    # mountpoints to exist on the rootfs; do not install /var/* — the
+    # volatile-binds + tmpfiles machinery in OE owns runtime /var, and
+    # creating /var/log here would conflict with that and trip the QA
+    # "installed but not shipped" check on /var/volatile/{,log}.
     install -d -m 0555 ${D}/proc ${D}/sys
-    install -d -m 0755 ${D}/dev ${D}/tmp ${D}/run ${D}/var/log
+    install -d -m 0755 ${D}/dev
     install -d -m 0700 ${D}/root
 }
 
@@ -160,7 +164,4 @@ FILES:${PN} = " \
     /proc \
     /sys \
     /dev \
-    /tmp \
-    /run \
-    /var/log \
 "
