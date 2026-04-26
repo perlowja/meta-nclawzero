@@ -1,0 +1,35 @@
+# nclawzero-ssh-keys / authorized_keys.example
+#
+# THIS FILE IS COMMITTED.  It documents the format expected by the
+# nclawzero-ssh-keys recipe.  The actual fleet-internal key list lives
+# in a sibling file `authorized_keys` (no .example suffix), which is
+# gitignored — never published to gitlab.com / github.com.
+#
+# To populate the real file before building:
+#
+#   1. Copy this file:
+#      cp recipes-core/nclawzero-ssh-keys/files/authorized_keys.example \
+#         recipes-core/nclawzero-ssh-keys/files/authorized_keys
+#
+#   2. Replace the placeholder lines below with your fleet's real
+#      ssh-ed25519 / ssh-rsa pubkey lines.
+#
+#   3. Sanity-check: `git status` must NOT show
+#      recipes-core/nclawzero-ssh-keys/files/authorized_keys as
+#      tracked — the .gitignore rule keeps it local-only.
+#
+# Format (one key per line, comment field is informational):
+#   ssh-<type> <base64> <comment-descriptive-of-workstation>
+#
+# Idempotency: every nclawzero-ssh-keys build replaces /home/<user>/.ssh/
+# authorized_keys wholesale; nothing accumulates across re-builds.
+# Rotation = edit this file + rebuild image.
+#
+# Both recipients (ncz operator + jasonperlow backup user) get the SAME
+# authorized_keys content; the second user is a defense-in-depth
+# foothold for when the operator account is disrupted (cf. 2026-04-26
+# Trixie userconfig stripping clawpi+zeropi accounts at first boot).
+
+# Replace these placeholder lines with real fleet workstation keys:
+ssh-ed25519 AAAAREPLACEME jperlow@<workstation-name>
+# ssh-ed25519 AAAAREPLACEME <user>@<host>

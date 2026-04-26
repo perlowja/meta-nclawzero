@@ -58,9 +58,20 @@ BAD_RECOMMENDATIONS:append = " \
 
 # --- Service users + operator login shell ----------------------------------
 #
-# Renamed from `pi` to `ncz` (2026-04-24). Existing flashed devices retain
-# pi until they're reflashed; `feedback_operator_user_ncz.md` captures
-# the rationale.
+# Operator user (ncz):
+#   Renamed from `pi` to `ncz` (2026-04-24). Existing flashed devices
+#   retain pi until they're reflashed; `feedback_operator_user_ncz.md`
+#   captures the rationale.
+#
+# Backup user (jasonperlow):
+#   Defense-in-depth recovery account. Locked password (-p '!'), key-only
+#   access via the same authorized_keys baked by nclawzero-ssh-keys.
+#   Lives so that if ncz is ever disabled / locked / deleted (cf. the
+#   2026-04-26 Trixie userconfig hard-block on clawpi+zeropi which
+#   stripped the operator account out from under us), the fleet still
+#   has a way back in via SSH key without a console step. Username
+#   matches the user's identity on every other fleet host (STUDIO,
+#   ULTRA, ARGOS, PYTHIA, CERBERUS) so muscle-memory works.
 #
 # Group memberships:
 #   sudo, wheel       — sudoers-ncz drop-in NOPASSWD
@@ -76,4 +87,5 @@ EXTRA_USERS_PARAMS = " \
     useradd -r -d /var/lib/zeroclaw -s /usr/sbin/nologin zeroclaw; \
     useradd -r -d /var/lib/nemoclaw -s /usr/sbin/nologin nemoclaw; \
     useradd -m -s /bin/bash -G sudo,wheel,docker,video,audio,input,plugdev -p '!' ncz; \
+    useradd -m -s /bin/bash -G sudo,wheel,docker,video,audio,input,plugdev -p '!' jasonperlow; \
 "

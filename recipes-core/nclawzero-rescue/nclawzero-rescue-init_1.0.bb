@@ -40,6 +40,33 @@ S = "${WORKDIR}"
 # pulled in by the image recipe (PACKAGE_INSTALL there).
 RDEPENDS:${PN} = "busybox dropbear"
 
+# Fleet-internal authorized_keys is gitignored — validate at parse time
+# so a missing file produces an actionable error before any work starts.
+# Same pattern as nclawzero-ssh-keys; both files rotate together.
+python () {
+    import os
+    keys = os.path.join(d.getVar('THISDIR'), 'files', 'authorized_keys')
+    if not os.path.isfile(keys):
+        example = keys + '.example'
+        bb.fatal(
+            "\n"
+            "nclawzero-rescue-init: required fleet-internal file is missing:\n"
+            "    %s\n"
+            "\n"
+            "This path is gitignored on purpose. Populate from the\n"
+            "committed .example sibling, mirroring whatever is in\n"
+            "recipes-core/nclawzero-ssh-keys/files/authorized_keys so\n"
+            "production and rescue accept the same operator pubkeys:\n"
+            "    cp %s %s\n"
+            "    $EDITOR %s\n"
+            "\n"
+            "Then re-run bitbake.\n"
+            % (keys, example, keys, keys)
+        )
+}
+
+# Idempotent: install -m overwrites every time. Re-running the recipe
+# against the same source produces an identical / tree.
 do_install() {
     install -d -m 0755 ${D}
     install -m 0755 ${WORKDIR}/init ${D}/init

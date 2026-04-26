@@ -1,1 +1,12 @@
 CLAUDE.md
+
+# Authentication-policy material — fleet-internal, never published.
+# These files contain SSH pubkey lists that reveal fleet topology
+# (which workstations have access to which Jetson / Pi devices). The
+# .example sibling alongside each is the committed documentation.
+#
+# Operator workflow: copy your fleet's real authorized_keys into the
+# matching path before running bitbake. If missing, the recipe build
+# fails fast with a pointer to this file.
+recipes-core/nclawzero-ssh-keys/files/authorized_keys
+recipes-core/nclawzero-rescue/files/authorized_keys
