@@ -143,6 +143,16 @@ python () {
         'ecdsa-sha2-nistp521-cert-v01@openssh.com',
         'sk-ecdsa-sha2-nistp256@openssh.com', 'sk-ssh-ed25519@openssh.com',
     ))
+    # ssh-keygen presence — recipe parses on the bitbake build host (not
+    # the target). Some build hosts (Yocto-in-container, minimal CI
+    # images) ship without openssh-client. Detect once and gracefully
+    # fall back to first-field-grammar validation only when absent — we
+    # don't want a missing build-host tool to mark every key as
+    # malformed (which is exactly the bug the pi-gen-nclawzero stage
+    # script hit on 2026-04-26).
+    import shutil
+    has_ssh_keygen = shutil.which('ssh-keygen') is not None
+
     bad_lines = []  # only line numbers — line content is fleet-internal
     for line_no, line in enumerate(body.splitlines(), start=1):
         stripped = line.strip()
@@ -151,6 +161,8 @@ python () {
         first = stripped.split(None, 1)[0] if stripped else ''
         if first not in SSHD_KEY_TYPES:
             bad_lines.append(line_no)
+            continue
+        if not has_ssh_keygen:
             continue
         try:
             subprocess.run(
@@ -162,7 +174,7 @@ python () {
                 stderr=subprocess.PIPE,
                 timeout=5,
             )
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             bad_lines.append(line_no)
 
     if bad_lines:
