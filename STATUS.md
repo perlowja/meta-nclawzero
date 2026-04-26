@@ -80,6 +80,19 @@ If you need LTS-grade guarantees, use a distro that actually has an LTS team. Th
 | `llama-cpp` | canary | `SRCREV = "${AUTOREV}"` → `ggml-org/llama.cpp` master HEAD |
 | `zeroclaw-bin` | pinned (necessarily — binary release) | `v0.7.3-beta.1051` tarball |
 | Layer itself (this repo) | rolling | no release branches exist yet |
+| L4T BSP / kernel | pinned | meta-tegra L4T R36.4.4 (kernel 5.15.148+git) |
+
+## 2026-04-26 additions (rescue + dual-user auth)
+
+The following recipes were added/updated; all live on `main` (canary track):
+
+- **`recipes-core/images/nclawzero-rescue-initramfs-jetson.bb`** — PXE-bootable rescue cpio.gz for Jetson. Multi-NIC (RTL8168 + Tegra234 EQOS via nvethernet), busybox + dropbear, no systemd, ~5 MB compressed. Used by the netloader infrastructure on ARGOS at `/opt/netboot/http/initrd/jetson-rescue.cpio.gz`.
+- **`recipes-core/nclawzero-rescue/`** — `nclawzero-rescue-init` package: `/init` script that mounts pseudo-fs, modprobes the NIC chain, runs udhcpc on whichever interface comes up, generates an ephemeral dropbear ed25519 host key, starts dropbear in a setsid background loop with respawn, and execs `/bin/sh` as PID 1 (operator console always survives, dropbear-restart loop always survives).
+- **`nclawzero-image-common.inc`** — added `jasonperlow` defense-in-depth backup user. Locked password (`-p '!'`), key-only access via the same baked authorized_keys, sudo NOPASSWD via dedicated drop-in. Username matches the user's identity on every other fleet host so muscle-memory works under either account.
+- **`recipes-core/nclawzero-system-config/files/sudoers-jasonperlow`** — companion to `sudoers-ncz`. Without this drop-in, the locked-password backup user could SSH in but couldn't escalate.
+- **`recipes-core/nclawzero-ssh-keys/` + `recipes-core/nclawzero-rescue/`** — auth-policy material moved to `.gitignore`'d local-only paths. Real fleet keys live at `/mnt/datapool/secrets/nclawzero-fleet-keys/authorized_keys` on ARGONAS; `~/sync-fleet-keys.sh` pulls into build-time gitignored paths. Recipe parse-time validation rejects empty/placeholder/malformed-line files with redacted diagnostics (line numbers only, never line content). Per-line strict validation (first-field grammar + ssh-keygen) with graceful fallback when ssh-keygen is absent on the build host.
+
+These are integration changes that live alongside the canary upstream tracking — the rescue initramfs and dual-user model belong to this layer, not upstream nemoclaw or zeroclaw, so they're maintainer-owned with no SRCREV churn.
 
 ## If you're evaluating this for deployment
 
