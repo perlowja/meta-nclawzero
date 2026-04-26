@@ -36,28 +36,48 @@ mountpoint -q /run  2>/dev/null || mount -t tmpfs    tmpfs    /run
 
 log "pseudo-fs mounted"
 
-# --- 2. NIC drivers (NIC-agnostic) ----------------------------------------
+# Refresh module dependency map.  The cpio ships a pre-generated
+# modules.dep but a stale dep file silently breaks modprobe; depmod -a
+# rebuilds against the modules actually present.  Cheap insurance.
+depmod -a 2>/dev/null || true
+
+# --- 2. PCIe + NIC drivers (NIC-agnostic) ---------------------------------
 #
-# Two distinct paths depending on which Jetson carrier we landed on:
+# Order matters on Tegra: the dev kit's onboard NIC (RTL8168) is PCIe-
+# attached, NOT direct-bus.  Without the Tegra PCIe controller + serdes
+# PHY loaded FIRST, the bus never enumerates → r8169 has nothing to bind
+# to → no eth interface → no DHCP → no rescue.  This was the failure
+# mode observed 2026-04-26: kernel handed off cleanly, screen went black,
+# device fully unreachable on the LAN because the NIC never came up.
+#
+# Two distinct edge-NIC paths depending on which Jetson carrier we landed:
 #
 #   Orin Nano dev kit P3768 carrier:   PCIe RTL8168 → r8169 + realtek_phy
 #                                      + linux-firmware-rtl-nic
+#                                      (requires Tegra PCIe stack)
 #   Production carriers w/ EQOS:       Tegra234 onboard → nvethernet
 #                                      (NVIDIA OOT, depends on stmmac /
 #                                      phylink / mdio_devres)
 #
-# Load both chains in order. modprobe -q is a no-op if a module isn't
-# present (i.e. the chain we're not on); we don't want a missing
-# dependency to abort the rescue boot. The ip-link probe in step 3
+# Load PCIe stack first, then both NIC chains in order.  modprobe -q is
+# a no-op if a module isn't present (i.e. the chain we're not on);
+# missing deps must NOT abort rescue boot.  ip-link probe in step 3
 # decides which interface actually came up.
 
 for m in \
+    phy-tegra194-p2u pcie-tegra194 \
+    nvme-core nvme \
     mdio_devres mdio_bus phylink \
     realtek_phy r8169 \
     stmmac stmmac_platform nvethernet \
 ; do
     modprobe -q "$m" 2>/dev/null || true
 done
+
+# Give PCIe enumeration + NIC probe a beat before walking interfaces.
+# Without this, the ip-link loop below can fire before the RTL chip is
+# bound, mistakenly reporting "no NIC" on a slow-enumeration carrier.
+sleep 2
 
 # Wait briefly for udev to settle interface device nodes.  devtmpfs +
 # kernel uevents normally produce eth* within ~500ms; give it 5s to be
