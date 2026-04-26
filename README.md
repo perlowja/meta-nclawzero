@@ -1,6 +1,15 @@
-# meta-nclawzero
+# nclawzero/meta
 
 Yocto layer for building minimal embedded Linux images with the ZeroClaw AI agent runtime and NemoClaw sandbox framework.
+
+> **Repo path note (2026-04-26 reorg):** this layer lives at
+> `gitlab.com/nclawzero/meta` (canonical) /
+> `github.com/nclawzero/meta` (mirror) /
+> `argonas:/mnt/datapool/git/nclawzero/meta.git` (fleet backup).
+> The previous flat `perlowja/meta-nclawzero` URL auto-redirects on both
+> forges. The on-disk directory name in working trees is still
+> `meta-nclawzero/` — that's a working-tree convenience, the project
+> path is `nclawzero/meta`.
 
 > ## ⚠️ Canary track — no stability claims
 >
@@ -20,8 +29,8 @@ No fork. No copied upstream code in this repo. Just patches, overlays, configs, 
 
 | Machine | Board | RAM | Status |
 |---------|-------|-----|--------|
-| `raspberrypi4-64` | Raspberry Pi 4 Model B | 2GB / 8GB | Primary |
-| `jetson-orin-nano-devkit` | NVIDIA Jetson Orin Nano | 8GB | Planned |
+| `raspberrypi4-64` | Raspberry Pi 4 Model B | 2GB / 8GB | Primary (production image: `nclawzero-image`) |
+| `jetson-orin-nano-devkit` | NVIDIA Jetson Orin Nano | 8GB | Active. Production image: `nclawzero-image-jetson` (single-slot) / `nclawzero-image-jetson-dual` (A/B). Rescue initramfs: `nclawzero-rescue-initramfs-jetson` (PXE-bootable, multi-NIC, dropbear). |
 
 ## Performance
 
@@ -67,11 +76,25 @@ meta-nclawzero/
   conf/layer.conf                      — layer configuration
   recipes-zeroclaw/zeroclaw/           — ZeroClaw binary + systemd service
   recipes-nemoclaw/nemoclaw/           — NemoClaw + patches + overlays
-  recipes-core/images/                 — image recipe
-  recipes-core/packagegroups/          — package group
+  recipes-core/images/                 — image recipes (rpi, jetson, jetson-dual, rescue)
+  recipes-core/nclawzero-rescue/       — Jetson PXE rescue init script + authorized_keys
+  recipes-core/nclawzero-ssh-keys/     — production rootfs authorized_keys bake
+  recipes-core/nclawzero-system-config/ — sudoers, networkd, logind, thermal
+  recipes-core/packagegroups/          — package groups
   recipes-connectivity/                — network configuration
   wic/                                 — SD card partition layout
 ```
+
+## Auth model
+
+Two user accounts created via `extrausers` on every flashed image:
+
+- **`ncz`** — operator (interactive sudo, NOPASSWD via sudoers drop-in). Locked password; SSH-only access via the baked authorized_keys.
+- **`jasonperlow`** — defense-in-depth backup user. Same authorized_keys, same NOPASSWD sudo. Exists so a disrupted operator account (e.g., the 2026-04-26 Pi OS Trixie userconfig stripping incident) doesn't lock the fleet out.
+
+`authorized_keys` content is **fleet-internal** (the comment fields disclose access topology). Real keys live at `/mnt/datapool/secrets/nclawzero-fleet-keys/authorized_keys` on ARGONAS and are pulled into the gitignored build-time path before each build via `~/sync-fleet-keys.sh`. The committed `.example` files document the format. Per-line strict validation rejects malformed lines (including `[options] key-type` shapes that ssh-keygen accepts but sshd refuses).
+
+See `feedback_auth_local_only_keys.md` in the operator's MNEMOS for the full policy.
 
 ## Lineage
 
