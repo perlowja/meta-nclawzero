@@ -123,13 +123,37 @@ python () {
     # empirically). A rotation with one good key + one typoed key
     # would pass that check and silently bake a partially-unreachable
     # set of recovery accounts.  Per-line validation closes the gap.
-    bad_lines = []
+    #
+    # Two-stage per-line check:
+    #   (1) STRICT first-field grammar — the first whitespace-separated
+    #       token must be a known sshd-supported key type. ssh-keygen
+    #       fingerprints lines like `- ssh-ed25519 AAAA...` or
+    #       `bad-option ssh-ed25519 AAAA...` (it scans for any valid
+    #       token), but sshd rejects them as malformed options. Reject
+    #       at build time so we don't ship lines sshd will silently
+    #       ignore.
+    #   (2) ssh-keygen on the full line — catches base64 corruption,
+    #       wrong-length key blobs, etc.
+    SSHD_KEY_TYPES = frozenset((
+        'ssh-rsa', 'ssh-dss', 'ssh-ed25519', 'ssh-ed25519-cert-v01@openssh.com',
+        'ssh-rsa-cert-v01@openssh.com', 'ssh-dss-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
+        'ecdsa-sha2-nistp256-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp384-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp521-cert-v01@openssh.com',
+        'sk-ecdsa-sha2-nistp256@openssh.com', 'sk-ssh-ed25519@openssh.com',
+    ))
+    bad_lines = []  # only line numbers — line content is fleet-internal
     for line_no, line in enumerate(body.splitlines(), start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
             continue
+        first = stripped.split(None, 1)[0] if stripped else ''
+        if first not in SSHD_KEY_TYPES:
+            bad_lines.append(line_no)
+            continue
         try:
-            proc = subprocess.run(
+            subprocess.run(
                 ['ssh-keygen', '-l', '-f', '/dev/stdin'],
                 input=line + '\n',
                 text=True,
@@ -139,14 +163,22 @@ python () {
                 timeout=5,
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            bad_lines.append((line_no, line))
+            bad_lines.append(line_no)
 
     if bad_lines:
-        msg = ["\nnclawzero-ssh-keys: %s contains malformed pubkey line(s):" % keys]
-        for ln, txt in bad_lines:
-            msg.append("    line %d: %s" % (ln, txt))
-        msg.append("\nFix each invalid line (one valid 'ssh-<type> <base64> <comment>' per\nline) and re-run bitbake.\n")
-        bb.fatal('\n'.join(msg))
+        # Diagnostic message redacts line content — pubkey + comment fields
+        # reveal fleet topology and shouldn't end up in CI build logs.
+        # Operator can read the lines themselves from %s.
+        bb.fatal(
+            "\nnclawzero-ssh-keys: malformed line(s) at:\n    %s\n  rejected on line %s.\n\n"
+            "Each non-comment line must start with a sshd-supported key type\n"
+            "(ssh-ed25519, ssh-rsa, ecdsa-sha2-nistp256, etc.) followed by\n"
+            "the base64 blob and an optional comment. No bullet prefixes,\n"
+            "no leading options-style fields. Fix each line locally (line\n"
+            "content NOT echoed here to keep keys out of build logs) and\n"
+            "re-run bitbake.\n"
+            % (keys, ', '.join(str(n) for n in bad_lines))
+        )
 }
 
 # do_install is idempotent — `install -m` overwrites every time, so a

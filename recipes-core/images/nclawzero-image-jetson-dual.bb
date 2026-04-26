@@ -17,6 +17,7 @@
 NCZ_NEEDS_WIC = "1"
 
 require nclawzero-image-jetson.bb
+inherit image-wic
 
 # Force-inherit the wic image class. The parent strips wic from
 # IMAGE_FSTYPES via :remove:tegra at parse time, which prevents the

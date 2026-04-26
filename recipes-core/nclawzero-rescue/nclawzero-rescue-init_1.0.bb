@@ -92,11 +92,27 @@ python () {
             % keys
         )
 
-    # Per-line validation (same gap as nclawzero-ssh-keys).
+    # Per-line validation — strict first-field check + ssh-keygen
+    # (same shape as nclawzero-ssh-keys; rotation discipline keeps
+    # them in sync). Diagnostics redact line content to keep
+    # fleet-internal keys out of build logs.
+    SSHD_KEY_TYPES = frozenset((
+        'ssh-rsa', 'ssh-dss', 'ssh-ed25519', 'ssh-ed25519-cert-v01@openssh.com',
+        'ssh-rsa-cert-v01@openssh.com', 'ssh-dss-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
+        'ecdsa-sha2-nistp256-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp384-cert-v01@openssh.com',
+        'ecdsa-sha2-nistp521-cert-v01@openssh.com',
+        'sk-ecdsa-sha2-nistp256@openssh.com', 'sk-ssh-ed25519@openssh.com',
+    ))
     bad_lines = []
     for line_no, line in enumerate(body.splitlines(), start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
+            continue
+        first = stripped.split(None, 1)[0] if stripped else ''
+        if first not in SSHD_KEY_TYPES:
+            bad_lines.append(line_no)
             continue
         try:
             subprocess.run(
@@ -109,14 +125,15 @@ python () {
                 timeout=5,
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            bad_lines.append((line_no, line))
+            bad_lines.append(line_no)
 
     if bad_lines:
-        msg = ["\nnclawzero-rescue-init: %s contains malformed pubkey line(s):" % keys]
-        for ln, txt in bad_lines:
-            msg.append("    line %d: %s" % (ln, txt))
-        msg.append("")
-        bb.fatal('\n'.join(msg))
+        bb.fatal(
+            "\nnclawzero-rescue-init: malformed line(s) at:\n    %s\n  rejected on line %s.\n"
+            "Line content NOT echoed (fleet-internal). Each non-comment line\n"
+            "must start with an sshd-supported key type.\n"
+            % (keys, ', '.join(str(n) for n in bad_lines))
+        )
 }
 
 # Idempotent: install -m overwrites every time. Re-running the recipe
