@@ -17,15 +17,22 @@
 NCZ_NEEDS_WIC = "1"
 
 require nclawzero-image-jetson.bb
-inherit image-wic
 
 # Force-inherit the wic image class. The parent strips wic from
 # IMAGE_FSTYPES via :remove:tegra at parse time, which prevents the
-# conditional inherit inside image.bbclass from pulling image-wic.bbclass.
+# conditional inherit inside image.bbclass from pulling image_types_wic.
 # Without this explicit inherit, do_image_wic is never defined; bitbake
 # silently emits a "Function do_image_wic doesnt exist" warning and no
 # .wic artifact is produced. The anonymous-python below restores
 # IMAGE_FSTYPES at runtime, but by then it is too late for the inherit.
+#
+# 2026-04-26 regression note: an earlier WIP edit added a bogus
+# `inherit image-wic` (with a hyphen) on top of this; that class does
+# not exist in scarthgap and parse-time fails with "Could not inherit
+# file classes/image-wic.bbclass". Fix 8adf4ad already corrected the
+# class name to `image_types_wic` (with underscores); the duplicate
+# hyphenated line was reintroduced by 6e7bf99 by accident and is now
+# removed for good.
 inherit image_types_wic
 
 SUMMARY = "nclawzero Jetson image (dual-slot WIC — A/B capable)"
