@@ -57,9 +57,16 @@ LICENSE = "MIT"
 # busybox suffices for shell, ip, ifconfig, mount, modprobe, etc.
 TEGRA_INITRD_BASEUTILS ?= "busybox"
 
+# Note: we intentionally do NOT install `tegra-minimal-init`. That
+# recipe ships its own /init that conflicts (file /init conflicts
+# between attempted installs of nclawzero-rescue-init-1.0 and
+# tegra-minimal-init-1.0). Our nclawzero-rescue-init owns /init for
+# the rescue use case (mount pseudo-fs, modprobe NICs, udhcpc,
+# dropbear) — tegra-minimal-init's default is for in-eMMC flashing
+# recovery, a different context.
+
 PACKAGE_INSTALL = " \
     tegra-firmware-xusb \
-    tegra-minimal-init \
     ${TEGRA_INITRD_BASEUTILS} \
     ${ROOTFS_BOOTSTRAP_INSTALL} \
     \
