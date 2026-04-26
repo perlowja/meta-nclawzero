@@ -83,8 +83,12 @@ PACKAGE_INSTALL = " \
     e2fsprogs-resize2fs \
     util-linux-blkid \
     util-linux-lsblk \
-    bmap-tools \
 "
+
+# Note: bmap-tools intentionally NOT installed. Not packaged in our
+# current meta-openembedded / meta-tegra layer set, and a rescue
+# initramfs can use plain `dd` for whole-disk writes — bmap-tools is
+# a host-side flashing convenience, not a recovery requirement.
 
 IMAGE_FEATURES = ""
 IMAGE_LINGUAS = ""
