@@ -40,14 +40,17 @@ S = "${WORKDIR}"
 # pulled in by the image recipe (PACKAGE_INSTALL there).
 RDEPENDS:${PN} = "busybox dropbear"
 
-# Fleet-internal authorized_keys is gitignored — validate at parse time
-# so a missing file produces an actionable error before any work starts.
-# Same pattern as nclawzero-ssh-keys; both files rotate together.
+# Fleet-internal authorized_keys is gitignored — validate at parse time:
+# presence + non-placeholder + ssh-keygen-valid lines.  Same shape as
+# nclawzero-ssh-keys; both files rotate together.
 python () {
     import os
+    import subprocess
+
     keys = os.path.join(d.getVar('THISDIR'), 'files', 'authorized_keys')
+    example = keys + '.example'
+
     if not os.path.isfile(keys):
-        example = keys + '.example'
         bb.fatal(
             "\n"
             "nclawzero-rescue-init: required fleet-internal file is missing:\n"
@@ -62,6 +65,48 @@ python () {
             "\n"
             "Then re-run bitbake.\n"
             % (keys, example, keys, keys)
+        )
+
+    with open(keys, 'r') as fh:
+        body = fh.read()
+
+    if 'AAAAREPLACEME' in body or 'REPLACEME' in body:
+        bb.fatal(
+            "\n"
+            "nclawzero-rescue-init: %s still contains the .example placeholder\n"
+            "(AAAAREPLACEME / REPLACEME).  Rescue image would PXE-boot but\n"
+            "no operator could SSH in.  Replace the placeholder lines with\n"
+            "real fleet pubkeys, then re-run bitbake.\n"
+            % keys
+        )
+
+    real_keys = [
+        ln for ln in body.splitlines()
+        if ln.strip() and not ln.lstrip().startswith('#')
+    ]
+    if not real_keys:
+        bb.fatal(
+            "\n"
+            "nclawzero-rescue-init: %s has no key lines (only comments).\n"
+            "Rescue image would PXE-boot unreachable.\n"
+            % keys
+        )
+
+    try:
+        subprocess.run(
+            ['ssh-keygen', '-l', '-f', keys],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        err = exc.stderr.decode() if hasattr(exc, 'stderr') and exc.stderr else str(exc)
+        bb.fatal(
+            "\n"
+            "nclawzero-rescue-init: %s contains at least one malformed pubkey\n"
+            "line.  ssh-keygen reported:\n"
+            "    %s\n"
+            % (keys, err.strip().replace('\n', '\n    '))
         )
 }
 

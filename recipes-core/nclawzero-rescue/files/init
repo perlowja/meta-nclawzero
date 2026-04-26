@@ -8,14 +8,16 @@
 #
 # Boot sequence (post kernel handoff):
 #   1. Mount /proc, /sys, /dev, /tmp.
-#   2. Load Tegra234 onboard ethernet driver (nvethernet) — without this,
-#      eth0 never comes up and the rescue is unreachable.
-#   3. udhcpc to grab an IP from the LAN's DHCP (PYTHIA on .67 typically;
-#      ProtoNet's main DHCP).
-#   4. Bring up dropbear in foreground on :22 with the pre-baked
-#      authorized_keys.
-#   5. If dropbear ever exits, fall through to /bin/sh so an HDMI/UART
-#      operator still has a console.
+#   2. Load every plausible Jetson NIC driver (RTL8168/R8169 for the
+#      Orin Nano dev kit P3768 carrier, nvethernet for production
+#      carriers with the Tegra234 EQOS like P3767-1000) — keep it
+#      NIC-agnostic so the rescue works on whichever Jetson lands.
+#   3. Iterate every non-loopback interface that came up; udhcpc until
+#      one gets a lease. First one to win drives the rescue session.
+#   4. Generate ephemeral dropbear host key on tmpfs.
+#   5. Start dropbear in BACKGROUND on :22, then exec /bin/sh so PID 1
+#      is the operator console. If the operator never SSHs and dropbear
+#      crashes, the console shell still survives.
 #
 # Idempotency: every step is gated on "is it already done?" so a re-run
 # (e.g. after a fork() or a panic-and-restart-of-init) doesn't double-mount.
@@ -34,41 +36,67 @@ mountpoint -q /run  2>/dev/null || mount -t tmpfs    tmpfs    /run
 
 log "pseudo-fs mounted"
 
-# --- 2. Tegra234 onboard ethernet ------------------------------------------
+# --- 2. NIC drivers (NIC-agnostic) ----------------------------------------
 #
-# nvethernet (NVIDIA OOT) is the driver for the EQOS controller on
-# Jetson Orin Nano / NX. Pull in its dependency chain in order — phy,
-# stmmac, then nvethernet itself. modprobe -q is a no-op if a module
-# isn't present (e.g. on Thor where the chain may differ); we don't
-# want a missing dependency to abort the rescue boot.
+# Two distinct paths depending on which Jetson carrier we landed on:
+#
+#   Orin Nano dev kit P3768 carrier:   PCIe RTL8168 → r8169 + realtek_phy
+#                                      + linux-firmware-rtl-nic
+#   Production carriers w/ EQOS:       Tegra234 onboard → nvethernet
+#                                      (NVIDIA OOT, depends on stmmac /
+#                                      phylink / mdio_devres)
+#
+# Load both chains in order. modprobe -q is a no-op if a module isn't
+# present (i.e. the chain we're not on); we don't want a missing
+# dependency to abort the rescue boot. The ip-link probe in step 3
+# decides which interface actually came up.
 
-for m in mdio_devres mdio_bus phylink stmmac stmmac_platform realtek_phy nvethernet; do
+for m in \
+    mdio_devres mdio_bus phylink \
+    realtek_phy r8169 \
+    stmmac stmmac_platform nvethernet \
+; do
     modprobe -q "$m" 2>/dev/null || true
 done
 
-# Wait briefly for udev to settle the eth0 device node. devtmpfs +
-# kernel uevents normally produce eth0 within ~500ms.
+# Wait briefly for udev to settle interface device nodes.  devtmpfs +
+# kernel uevents normally produce eth* within ~500ms; give it 5s to be
+# generous on slower carriers.
 i=0
-while [ $i -lt 20 ] && ! ip link show eth0 > /dev/null 2>&1; do
+while [ $i -lt 20 ]; do
+    if ip -o link show 2>/dev/null | awk -F: '$2 !~ /lo/ && $2 ~ /eth|enp|enx/ {found=1} END {exit !found}'; then
+        break
+    fi
     sleep 0.25
     i=$((i + 1))
 done
 
-if ! ip link show eth0 > /dev/null 2>&1; then
-    log "WARN: eth0 not present after nvethernet load — check kernel cmdline + module deps"
+# --- 3. DHCP on whichever interface actually appeared ---------------------
+
+ACTIVE_IFACE=""
+ACTIVE_IP=""
+
+for IFACE in $(ip -o link show 2>/dev/null | awk -F': ' '$2 !~ /^lo/ && $2 ~ /^(eth|enp|enx)/ {print $2}'); do
+    log "trying ${IFACE}"
+    ip link set "${IFACE}" up || continue
+
+    # Short DHCP timeout per interface — if this one is unplugged, we
+    # want to move on to the next one quickly.
+    if udhcpc -i "${IFACE}" -t 4 -T 2 -A 3 -n -q \
+              -s /usr/share/udhcpc/default.script > /dev/null 2>&1; then
+        ip4=$(ip -4 addr show "${IFACE}" | awk '/inet / {print $2}' | head -1)
+        if [ -n "${ip4}" ]; then
+            ACTIVE_IFACE="${IFACE}"
+            ACTIVE_IP="${ip4}"
+            log "DHCP success on ${IFACE}: ${ip4}"
+            break
+        fi
+    fi
+done
+
+if [ -z "${ACTIVE_IFACE}" ]; then
+    log "WARN: no NIC got a DHCP lease — operator must assign IP via console"
 fi
-
-ip link set eth0 up || true
-log "eth0 link up (or attempted)"
-
-# --- 3. DHCP ----------------------------------------------------------------
-
-udhcpc -i eth0 -t 5 -T 3 -A 5 -n -q -O hostname -s /usr/share/udhcpc/default.script || \
-    log "WARN: udhcpc failed — fall back to manual ip assignment via console"
-
-# Display the resulting IP for operator visibility on the kernel log.
-IP=$(ip -4 addr show eth0 | awk '/inet / {print $2}' | head -1)
-log "eth0 IP: ${IP:-NONE}"
 
 # --- 4. SSH host keys -------------------------------------------------------
 #
@@ -83,17 +111,34 @@ if [ ! -f /etc/dropbear/dropbear_ed25519_host_key ]; then
         grep "^Fingerprint" | sed 's/^/[ncz-rescue] dropbear /' || true
 fi
 
-# --- 5. dropbear (foreground) ----------------------------------------------
-
-log "starting dropbear on :22 — operator can now ssh root@${IP:-<eth0-ip>}"
-
-# -F  foreground (don't fork off)
-# -E  log to stderr (which goes to console / kmsg)
+# --- 5. dropbear (background) + console shell (PID 1) ---------------------
+#
+# Background dropbear with -F kept under setsid so it survives even if
+# our shell exits. PID 1 stays as this script, which then exec's /bin/sh
+# for HDMI/UART operator control. If dropbear crashes, the console
+# survives — and vice versa, so neither failure mode produces an
+# unrecoverable state.
+#
+# -F  foreground (we wrap in setsid + & so it doesn't fork itself)
+# -E  log to stderr (which goes to kmsg via the redirect below)
 # -p  port (default 22)
-# -B  allow blank-password root login DISABLED (key-based only)
-exec dropbear -F -E -p 22 -r /etc/dropbear/dropbear_ed25519_host_key
+# -r  ed25519 host key path
 
-# If dropbear ever exits, drop to a console shell so an attached UART /
-# HDMI operator still has a way in.
-log "dropbear exited — falling through to /bin/sh"
+log "starting dropbear on :22 — operator can ssh root@${ACTIVE_IP:-<no-ip>}"
+
+setsid sh -c '
+    while true; do
+        dropbear -F -E -p 22 -r /etc/dropbear/dropbear_ed25519_host_key \
+            > /dev/kmsg 2>&1 || true
+        echo "[ncz-rescue] dropbear exited rc=$? — respawning in 5s" > /dev/kmsg 2>&1
+        sleep 5
+    done
+' </dev/null >/dev/kmsg 2>&1 &
+
+DROPBEAR_PID=$!
+log "dropbear supervisor pid=${DROPBEAR_PID}"
+
+# PID 1 lives on as the console shell — never exits, always provides a
+# UART / HDMI rescue path even if everything else falls over.
+log "console shell ready on PID 1 — HDMI/UART operator has a real shell"
 exec /bin/sh

@@ -2,40 +2,47 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # nclawzero-rescue-initramfs-jetson — PXE-bootable rescue initramfs for
-# Jetson Orin Nano / Orin NX. Boots over the network, brings up the
-# Tegra234 onboard ethernet via the nvethernet OOT module, starts dropbear,
-# and waits for an operator to SSH in for install / repair / triage.
+# Jetson Orin Nano / Orin NX. Boots over the network, brings up whichever
+# NIC is present (RTL8168/R8169 on the dev kit, Tegra234 EQOS via
+# nvethernet on production carriers), starts dropbear, and waits for
+# an operator to SSH in for install / repair / triage.
 #
 # WHY a Jetson-specific rescue initramfs:
-#   The Tegra234 onboard ethernet (EQOS) is driven by NVIDIA's OOT
-#   `nvethernet` module — neither mainline Linux nor any standard Debian /
-#   Ubuntu netinstall initrd carries it. Booting Jetson over PXE with a
-#   stock arm64 kernel + initrd produces a kernel that loads but cannot
-#   bring up its NIC, so the PXE rescue dies silently after kernel handoff.
+#   The Jetson Orin Nano dev kit's P3768 carrier exposes a PCIe RTL8168
+#   gigabit NIC (driver: r8169, firmware: linux-firmware-rtl-nic), while
+#   production carriers like P3767-1000 expose the Tegra234 onboard EQOS
+#   (driver: NVIDIA's OOT nvethernet). Neither mainline Linux nor any
+#   standard Debian/Ubuntu netinstall initrd carries the Tegra OOT pieces,
+#   AND most don't bundle r8169 firmware either. Booting Jetson over PXE
+#   with a stock arm64 kernel + initrd typically produces a kernel that
+#   loads but cannot bring up its NIC, so the PXE rescue dies silently
+#   after kernel handoff.
 #
 #   The fix is to use the L4T kernel + a Tegra-aware initramfs that
-#   modprobes nvethernet (and its prerequisites) before any networking is
-#   attempted.
+#   modprobes BOTH NIC paths and brings up whichever interface appears.
 #
 # WHAT this image is:
 #   - Wraps `tegra-minimal-initramfs` (already in meta-tegra) with the
 #     networking + remote-access bits the original was missing.
-#   - busybox + dropbear (sshd), no systemd, ~25-40 MB compressed cpio.gz.
+#   - busybox + dropbear (sshd), no systemd, ~30-50 MB compressed cpio.gz.
 #   - Pre-baked authorized_keys at /root/.ssh/authorized_keys so a
 #     freshly-PXE-booted Jetson is reachable from any fleet host on day one.
 #
 # WHAT this image is NOT:
-#   - Not a sovereign system. Job is install / repair, then chainload or
-#     reboot into the production nclawzero-image-jetson on whatever target
-#     storage we provisioned (NVMe / SD).
+#   - Not a sovereign system. Job is repair / triage / manual install
+#     (parted + mkfs + bmaptool + nvme-cli for the storage path; no
+#     packaged installer ships in this version — the recipe shipping a
+#     `nclawzero-install` CLI is a TODO and intentionally absent here so
+#     this initramfs is honest about its capabilities).
 #   - Not CUDA-capable. Rescue does not need CUDA; the production image
 #     does. Same kernel base (L4T 5.15.148+git) so the rescue's nvethernet
 #     ABI matches what production expects — no kernel-pin surprises.
 #
 # Boot chain:
 #   iPXE chainload → kernel (L4T Image) + this initramfs (.cpio.gz) →
-#   /init → modprobe nvethernet → udhcpc on eth0 → dropbear -F -p 22 →
-#   operator SSH in → run /usr/bin/nclawzero-install or repair tools.
+#   /init → modprobe r8169 + nvethernet → udhcpc on first NIC that
+#   answers → dropbear in background on :22 + console shell on PID 1 →
+#   operator SSH in → manually run repair commands.
 #
 # Build:
 #   bitbake nclawzero-rescue-initramfs-jetson
@@ -44,7 +51,7 @@
 #   tmp/deploy/images/jetson-orin-nano-devkit/nclawzero-rescue-initramfs-jetson-*.cpio.gz
 #     → /opt/netboot/http/initrd/jetson-rescue.cpio.gz on ARGOS
 
-DESCRIPTION = "PXE rescue initramfs for nclawzero Jetson — Tegra ethernet + dropbear"
+DESCRIPTION = "PXE rescue initramfs for nclawzero Jetson — multi-NIC + dropbear"
 LICENSE = "MIT"
 
 # busybox suffices for shell, ip, ifconfig, mount, modprobe, etc.
@@ -59,6 +66,9 @@ PACKAGE_INSTALL = " \
     nclawzero-rescue-init \
     \
     nv-kernel-module-nvethernet \
+    kernel-module-r8169 \
+    kernel-module-realtek \
+    linux-firmware-rtl-nic \
     kernel-module-nvme \
     kernel-module-pcie-tegra194 \
     kernel-module-phy-tegra194-p2u \
@@ -71,6 +81,7 @@ PACKAGE_INSTALL = " \
     parted \
     e2fsprogs \
     e2fsprogs-mke2fs \
+    e2fsprogs-resize2fs \
     util-linux-blkid \
     util-linux-lsblk \
     bmap-tools \

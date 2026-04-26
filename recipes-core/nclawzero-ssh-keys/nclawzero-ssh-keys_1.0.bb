@@ -55,27 +55,88 @@ S = "${WORKDIR}"
 # already true — this is belt-and-suspenders documentation.
 RDEPENDS:${PN} = "openssh-sshd"
 
-# Fleet-internal authorized_keys file is gitignored. Validate at parse
-# time so a missing file gets a clear, actionable error before bitbake
-# even starts building anything.
+# Fleet-internal authorized_keys file is gitignored.  Validate at parse
+# time — both presence AND content — so a missing-or-placeholder file
+# gets a clear, actionable error before bitbake even starts building
+# anything (and well before a multi-hour Yocto build + flash cycle that
+# would otherwise produce an SSH-unreachable image with locked accounts).
 python () {
     import os
+    import subprocess
+
     keys = os.path.join(d.getVar('THISDIR'), 'files', 'authorized_keys')
+    example = keys + '.example'
+
     if not os.path.isfile(keys):
-        example = keys + '.example'
         bb.fatal(
             "\n"
             "nclawzero-ssh-keys: required fleet-internal file is missing:\n"
             "    %s\n"
             "\n"
             "This path is gitignored on purpose — pubkey lists reveal\n"
-            "fleet topology and stay out of public repos. Populate it\n"
+            "fleet topology and stay out of public repos.  Populate it\n"
             "from the committed .example sibling:\n"
             "    cp %s %s\n"
             "    $EDITOR %s\n"
             "\n"
             "Then re-run bitbake.\n"
             % (keys, example, keys, keys)
+        )
+
+    # Reject obvious placeholder content. The .example ships a literal
+    # AAAAREPLACEME line — if an operator did `cp .example authorized_keys`
+    # without editing, the file is "non-empty" but unusable, and both
+    # locked-password user accounts would ship with no functional SSH key.
+    with open(keys, 'r') as fh:
+        body = fh.read()
+
+    if 'AAAAREPLACEME' in body or 'REPLACEME' in body:
+        bb.fatal(
+            "\n"
+            "nclawzero-ssh-keys: %s still contains the .example placeholder\n"
+            "(AAAAREPLACEME / REPLACEME).  An image baked with this content\n"
+            "would be SSH-unreachable on first boot.  Edit the file and\n"
+            "replace the placeholder lines with real fleet pubkeys, then\n"
+            "re-run bitbake.\n"
+            % keys
+        )
+
+    # Validate every non-blank, non-comment line as a real ssh pubkey.
+    # ssh-keygen -l -f <file> parses authorized_keys and prints one
+    # fingerprint per valid key; non-zero exit = at least one bad line.
+    real_keys = [
+        ln for ln in body.splitlines()
+        if ln.strip() and not ln.lstrip().startswith('#')
+    ]
+    if not real_keys:
+        bb.fatal(
+            "\n"
+            "nclawzero-ssh-keys: %s has no key lines (only comments / blanks).\n"
+            "Image would ship with empty authorized_keys for both ncz and\n"
+            "jasonperlow. Add real fleet pubkeys before re-running bitbake.\n"
+            % keys
+        )
+
+    try:
+        subprocess.run(
+            ['ssh-keygen', '-l', '-f', keys],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        # ssh-keygen on the build host validates each line.  Failure here
+        # means at least one entry is malformed.  Don't leave that for the
+        # image to discover post-flash.
+        err = exc.stderr.decode() if hasattr(exc, 'stderr') and exc.stderr else str(exc)
+        bb.fatal(
+            "\n"
+            "nclawzero-ssh-keys: %s contains at least one malformed pubkey\n"
+            "line.  ssh-keygen reported:\n"
+            "    %s\n"
+            "Fix the file (one valid 'ssh-<type> <base64> <comment>' per\n"
+            "line) and re-run bitbake.\n"
+            % (keys, err.strip().replace('\n', '\n    '))
         )
 }
 

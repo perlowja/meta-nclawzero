@@ -1,0 +1,15 @@
+# NOPASSWD sudo for the locked-password backup user on nclawzero edge
+# devices.  jasonperlow is created by extrausers in
+# nclawzero-image-common.inc with -p '!' (locked password); without this
+# explicit NOPASSWD drop-in, an operator who SSH'd in with their pubkey
+# would still be unable to escalate (sudo would prompt for a password
+# that doesn't exist).
+#
+# This is the auth-policy contract for the recovery account: SSH
+# pubkey gets you in, sudo without password gets you root.  The whole
+# point of the backup user is to be a real foothold for repair, not
+# a half-functional dead-end.
+#
+# Companion to /etc/sudoers.d/90-nclawzero-ncz which provides the same
+# posture for the primary operator user.
+jasonperlow ALL=(ALL:ALL) NOPASSWD: ALL

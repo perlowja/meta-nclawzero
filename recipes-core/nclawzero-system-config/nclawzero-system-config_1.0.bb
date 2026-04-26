@@ -25,6 +25,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/Apache-2.0;md5=89aea4e17d99a7ca
 
 SRC_URI = " \
     file://sudoers-ncz \
+    file://sudoers-jasonperlow \
     file://99-no-idle-poweroff.conf \
     file://10-wired.network \
     file://20-wlan.network \
@@ -62,9 +63,14 @@ pkg_postinst_ontarget:${PN} () {
 }
 
 do_install() {
-    # sudoers drop-in
+    # sudoers drop-ins — operator (ncz) AND locked-password backup
+    # user (jasonperlow) both get NOPASSWD so a key-only login can
+    # actually do recovery work.
     install -d -m 0750 ${D}${sysconfdir}/sudoers.d
-    install -m 0440 ${WORKDIR}/sudoers-ncz ${D}${sysconfdir}/sudoers.d/90-nclawzero-ncz
+    install -m 0440 ${WORKDIR}/sudoers-ncz \
+        ${D}${sysconfdir}/sudoers.d/90-nclawzero-ncz
+    install -m 0440 ${WORKDIR}/sudoers-jasonperlow \
+        ${D}${sysconfdir}/sudoers.d/91-nclawzero-jasonperlow
 
     # logind drop-in
     install -d -m 0755 ${D}${sysconfdir}/systemd/logind.conf.d
@@ -104,6 +110,7 @@ do_install() {
 
 FILES:${PN} = " \
     ${sysconfdir}/sudoers.d/90-nclawzero-ncz \
+    ${sysconfdir}/sudoers.d/91-nclawzero-jasonperlow \
     ${sysconfdir}/systemd/logind.conf.d/99-no-idle-poweroff.conf \
     ${sysconfdir}/systemd/network/10-wired.network \
     ${sysconfdir}/systemd/network/20-wlan.network \
