@@ -117,27 +117,36 @@ python () {
             % keys
         )
 
-    try:
-        subprocess.run(
-            ['ssh-keygen', '-l', '-f', keys],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        # ssh-keygen on the build host validates each line.  Failure here
-        # means at least one entry is malformed.  Don't leave that for the
-        # image to discover post-flash.
-        err = exc.stderr.decode() if hasattr(exc, 'stderr') and exc.stderr else str(exc)
-        bb.fatal(
-            "\n"
-            "nclawzero-ssh-keys: %s contains at least one malformed pubkey\n"
-            "line.  ssh-keygen reported:\n"
-            "    %s\n"
-            "Fix the file (one valid 'ssh-<type> <base64> <comment>' per\n"
-            "line) and re-run bitbake.\n"
-            % (keys, err.strip().replace('\n', '\n    '))
-        )
+    # Validate each non-comment line independently.  Whole-file
+    # `ssh-keygen -l -f <file>` returns 0 when the file contains AT
+    # LEAST ONE valid key, even with garbled lines mixed in (verified
+    # empirically). A rotation with one good key + one typoed key
+    # would pass that check and silently bake a partially-unreachable
+    # set of recovery accounts.  Per-line validation closes the gap.
+    bad_lines = []
+    for line_no, line in enumerate(body.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        try:
+            proc = subprocess.run(
+                ['ssh-keygen', '-l', '-f', '/dev/stdin'],
+                input=line + '\n',
+                text=True,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=5,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            bad_lines.append((line_no, line))
+
+    if bad_lines:
+        msg = ["\nnclawzero-ssh-keys: %s contains malformed pubkey line(s):" % keys]
+        for ln, txt in bad_lines:
+            msg.append("    line %d: %s" % (ln, txt))
+        msg.append("\nFix each invalid line (one valid 'ssh-<type> <base64> <comment>' per\nline) and re-run bitbake.\n")
+        bb.fatal('\n'.join(msg))
 }
 
 # do_install is idempotent — `install -m` overwrites every time, so a

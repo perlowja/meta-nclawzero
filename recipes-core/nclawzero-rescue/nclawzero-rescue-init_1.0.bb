@@ -92,22 +92,31 @@ python () {
             % keys
         )
 
-    try:
-        subprocess.run(
-            ['ssh-keygen', '-l', '-f', keys],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        err = exc.stderr.decode() if hasattr(exc, 'stderr') and exc.stderr else str(exc)
-        bb.fatal(
-            "\n"
-            "nclawzero-rescue-init: %s contains at least one malformed pubkey\n"
-            "line.  ssh-keygen reported:\n"
-            "    %s\n"
-            % (keys, err.strip().replace('\n', '\n    '))
-        )
+    # Per-line validation (same gap as nclawzero-ssh-keys).
+    bad_lines = []
+    for line_no, line in enumerate(body.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        try:
+            subprocess.run(
+                ['ssh-keygen', '-l', '-f', '/dev/stdin'],
+                input=line + '\n',
+                text=True,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=5,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            bad_lines.append((line_no, line))
+
+    if bad_lines:
+        msg = ["\nnclawzero-rescue-init: %s contains malformed pubkey line(s):" % keys]
+        for ln, txt in bad_lines:
+            msg.append("    line %d: %s" % (ln, txt))
+        msg.append("")
+        bb.fatal('\n'.join(msg))
 }
 
 # Idempotent: install -m overwrites every time. Re-running the recipe

@@ -67,7 +67,6 @@ PACKAGE_INSTALL = " \
     \
     nv-kernel-module-nvethernet \
     kernel-module-r8169 \
-    kernel-module-realtek \
     linux-firmware-rtl-nic \
     kernel-module-nvme \
     kernel-module-pcie-tegra194 \
