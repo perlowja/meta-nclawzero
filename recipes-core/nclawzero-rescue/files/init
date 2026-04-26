@@ -1,0 +1,99 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# /init for nclawzero Jetson PXE rescue initramfs.
+#
+# Replaces busybox's default stub. Runs as PID 1 inside the cpio.gz
+# initramfs unpacked by the kernel after PXE handoff.
+#
+# Boot sequence (post kernel handoff):
+#   1. Mount /proc, /sys, /dev, /tmp.
+#   2. Load Tegra234 onboard ethernet driver (nvethernet) — without this,
+#      eth0 never comes up and the rescue is unreachable.
+#   3. udhcpc to grab an IP from the LAN's DHCP (PYTHIA on .67 typically;
+#      ProtoNet's main DHCP).
+#   4. Bring up dropbear in foreground on :22 with the pre-baked
+#      authorized_keys.
+#   5. If dropbear ever exits, fall through to /bin/sh so an HDMI/UART
+#      operator still has a console.
+#
+# Idempotency: every step is gated on "is it already done?" so a re-run
+# (e.g. after a fork() or a panic-and-restart-of-init) doesn't double-mount.
+
+set -eu
+
+log() { echo "[ncz-rescue] $*" > /dev/kmsg 2>/dev/null || echo "[ncz-rescue] $*"; }
+
+# --- 1. pseudo-filesystems -------------------------------------------------
+
+mountpoint -q /proc 2>/dev/null || mount -t proc     proc     /proc
+mountpoint -q /sys  2>/dev/null || mount -t sysfs    sys      /sys
+mountpoint -q /dev  2>/dev/null || mount -t devtmpfs devtmpfs /dev || mount -t tmpfs tmpfs /dev
+mountpoint -q /tmp  2>/dev/null || mount -t tmpfs    tmpfs    /tmp
+mountpoint -q /run  2>/dev/null || mount -t tmpfs    tmpfs    /run
+
+log "pseudo-fs mounted"
+
+# --- 2. Tegra234 onboard ethernet ------------------------------------------
+#
+# nvethernet (NVIDIA OOT) is the driver for the EQOS controller on
+# Jetson Orin Nano / NX. Pull in its dependency chain in order — phy,
+# stmmac, then nvethernet itself. modprobe -q is a no-op if a module
+# isn't present (e.g. on Thor where the chain may differ); we don't
+# want a missing dependency to abort the rescue boot.
+
+for m in mdio_devres mdio_bus phylink stmmac stmmac_platform realtek_phy nvethernet; do
+    modprobe -q "$m" 2>/dev/null || true
+done
+
+# Wait briefly for udev to settle the eth0 device node. devtmpfs +
+# kernel uevents normally produce eth0 within ~500ms.
+i=0
+while [ $i -lt 20 ] && ! ip link show eth0 > /dev/null 2>&1; do
+    sleep 0.25
+    i=$((i + 1))
+done
+
+if ! ip link show eth0 > /dev/null 2>&1; then
+    log "WARN: eth0 not present after nvethernet load — check kernel cmdline + module deps"
+fi
+
+ip link set eth0 up || true
+log "eth0 link up (or attempted)"
+
+# --- 3. DHCP ----------------------------------------------------------------
+
+udhcpc -i eth0 -t 5 -T 3 -A 5 -n -q -O hostname -s /usr/share/udhcpc/default.script || \
+    log "WARN: udhcpc failed — fall back to manual ip assignment via console"
+
+# Display the resulting IP for operator visibility on the kernel log.
+IP=$(ip -4 addr show eth0 | awk '/inet / {print $2}' | head -1)
+log "eth0 IP: ${IP:-NONE}"
+
+# --- 4. SSH host keys -------------------------------------------------------
+#
+# Generate dropbear's host key on first boot. The keys are ephemeral
+# (live only in tmpfs for the duration of this PXE session); operator
+# verifies fingerprints out-of-band — there's no persistent identity
+# for a rescue initramfs that PXE-boots fresh every time.
+
+if [ ! -f /etc/dropbear/dropbear_ed25519_host_key ]; then
+    install -d -m 0700 /etc/dropbear
+    dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>&1 | \
+        grep "^Fingerprint" | sed 's/^/[ncz-rescue] dropbear /' || true
+fi
+
+# --- 5. dropbear (foreground) ----------------------------------------------
+
+log "starting dropbear on :22 — operator can now ssh root@${IP:-<eth0-ip>}"
+
+# -F  foreground (don't fork off)
+# -E  log to stderr (which goes to console / kmsg)
+# -p  port (default 22)
+# -B  allow blank-password root login DISABLED (key-based only)
+exec dropbear -F -E -p 22 -r /etc/dropbear/dropbear_ed25519_host_key
+
+# If dropbear ever exits, drop to a console shell so an attached UART /
+# HDMI operator still has a way in.
+log "dropbear exited — falling through to /bin/sh"
+exec /bin/sh
