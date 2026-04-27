@@ -8,7 +8,8 @@
 # or fully offline use cases.
 #
 # Build is Release, shared libs, native CPU (NEON auto-enabled on aarch64),
-# OpenMP for multi-threading, no CUDA.
+# OpenMP for multi-threading, no CUDA (Pi 4 has no NVIDIA GPU; Jetson will
+# use a separate recipe with CUDA enabled under meta-tegra).
 
 SUMMARY = "llama.cpp — LLM inference in C/C++ (CPU, NEON, OpenMP)"
 DESCRIPTION = "CPU-first LLM inference engine supporting GGUF-format models. \
@@ -32,7 +33,19 @@ S = "${WORKDIR}/git"
 
 inherit cmake
 
-COMPATIBLE_MACHINE = "(raspberrypi4-64|raspberrypi5|raspberrypi3-64|raspberrypi0-2w-64)"
+# Inherit meta-tegra's cuda class — exports CUDA_TOOLKIT_ROOT, CUDACXX,
+# CUDA_NVCC_EXECUTABLE, adds cuda-cudart + cuda-nvcc to DEPENDS via
+# DEPENDS:append:cuda, and wires cmake's CMAKE_CUDA_* toolchain into the
+# generated toolchain.cmake. The class only affects builds when "cuda" is
+# in OVERRIDES (which meta-tegra's machine .conf files set on Jetson).
+# On non-Tegra targets this recipe is not pulled into any image, so
+# parse-time cost is zero there.
+inherit cuda
+
+# Gate the recipe to Tegra machines explicitly. llama-cpp-cuda is overkill
+# on ARMv7/ARMv8-no-CUDA targets; those can use llama-cpp-cpu (future split
+# if needed). Keeps non-Tegra builds from confusedly parsing this recipe.
+COMPATIBLE_MACHINE = "(tegra)"
 
 
 
@@ -51,13 +64,21 @@ EXTRA_OECMAKE = " \
     -DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON \
 "
 
-# CPU-only baseline. llama-server is always built for zeroclaw
-# [provider.local] + the Gemma 4 demo.
+# CPU-only baseline; Jetson overrides below enable CUDA offload (~3–5× tok/s
+# on Orin Nano for 7B Q4 GGUF). llama-server is always built — required by
+# zeroclaw [provider.local] + the Gemma 4 demo.
 EXTRA_OECMAKE:append = " -DLLAMA_BUILD_SERVER=ON"
 EXTRA_OECMAKE:append = " -DGGML_CUDA=OFF"
 
-# For Pi 4 / Cortex-A72 targets, NEON is guaranteed. Explicit compile
-# flags for aarch64 optimisation.
+# Target sm_87 (Ampere — Orin Nano/Super/NX). meta-tegra's cuda class
+# (inherited above) handles the CUDA_TOOLKIT_ROOT / CUDACXX / nvcc path
+# resolution automatically. Thor needs sm_100+ once meta-tegra adds
+# Thor machines.
+EXTRA_OECMAKE:append:tegra = " -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=87"
+CUDA_ARCHITECTURES = "87"
+
+# For Pi 4 / Cortex-A72 / Jetson Orin targets, NEON is guaranteed. Explicit
+# compile flags for aarch64 optimisation.
 CFLAGS:append = " -mcpu=cortex-a72 -mtune=cortex-a72"
 CXXFLAGS:append = " -mcpu=cortex-a72 -mtune=cortex-a72"
 
