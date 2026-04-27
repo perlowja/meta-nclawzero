@@ -27,10 +27,20 @@ No fork. No copied upstream code in this repo. Just patches, overlays, configs, 
 
 ## Targets
 
-| Machine | Board | RAM | Status |
-|---------|-------|-----|--------|
-| `raspberrypi4-64` | Raspberry Pi 4 Model B | 2GB / 8GB | Primary (production image: `nclawzero-image`) |
-| `jetson-orin-nano-devkit` | NVIDIA Jetson Orin Nano | 8GB | Active. Production image: `nclawzero-image-jetson` (single-slot) / `nclawzero-image-jetson-dual` (A/B). Rescue initramfs: `nclawzero-rescue-initramfs-jetson` (PXE-bootable, multi-NIC, dropbear). |
+Current public support:
+
+- x86_64 + macOS via Docker/Podman containers:
+  `ghcr.io/perlowja/nclawzero-demo`,
+  `ghcr.io/perlowja/nclawzero-agent`
+- ARM Raspberry Pi family (Pi 4, Pi 5, Pi Zero 2 W, Pi 3 64-bit) via
+  Yocto-built flashable images (`meta-nclawzero-base`) or pre-built SD
+  images (`pi-gen-nclawzero`)
+
+> **NVIDIA Jetson family support is deferred pending hardware validation.**
+> A maintainer-tested Orin Nano dev kit suffered a brick-class firmware
+> failure that has not been recovered through software. Public docs should
+> not treat that workflow as supported until a known-good replacement unit
+> validates it end to end.
 
 ## Performance
 
@@ -46,7 +56,6 @@ ZeroClaw on Raspberry Pi 4B (2GB):
 - poky (scarthgap)
 - meta-openembedded (scarthgap) — meta-oe, meta-python
 - meta-raspberrypi (scarthgap) — for Pi targets
-- meta-tegra (scarthgap) — for Jetson targets (future)
 
 ## Quick start
 
@@ -76,8 +85,7 @@ meta-nclawzero/
   conf/layer.conf                      — layer configuration
   recipes-zeroclaw/zeroclaw/           — ZeroClaw binary + systemd service
   recipes-nemoclaw/nemoclaw/           — NemoClaw + patches + overlays
-  recipes-core/images/                 — image recipes (rpi, jetson, jetson-dual, rescue)
-  recipes-core/nclawzero-rescue/       — Jetson PXE rescue init script + authorized_keys
+  recipes-core/images/                 — Raspberry Pi image recipes
   recipes-core/nclawzero-ssh-keys/     — production rootfs authorized_keys bake
   recipes-core/nclawzero-system-config/ — sudoers, networkd, logind, thermal
   recipes-core/packagegroups/          — package groups

@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # nclawzero-demo-gemma — first-boot provisioning of a Gemma Unsloth GGUF
-# plus a matching llama-server systemd unit. Scope: the edge-AI demo
-# for Phil Lawrence / NVIDIA Jetson team ("5MB zeroclaw + local Gemma on
-# 8GB Orin Nano Super").
+# plus a matching llama-server systemd unit. Scope: optional local
+# inference demos on supported Pi/container targets.
 #
 # Why first-boot fetch instead of SRC_URI:
 #   - GGUF files are 2-5 GB. SRC_URI at Yocto build time needs a known
