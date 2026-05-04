@@ -2,7 +2,7 @@
 
 **Companion to:** [`ZEROCLAW-API-INVENTORY.md`](./ZEROCLAW-API-INVENTORY.md) (commit `69c8f0c`, source-derived catalogue of 57 endpoints).
 **Target:** TYPHON `zeroclaw-demo-typhon` container — `ghcr.io/perlowja/nclawzero-demo:master-165cb33`, listening on `127.0.0.1:42617` inside the container.
-**Reachability from this host:** `ssh jasonperlow@192.168.207.61 'curl http://localhost:42617/<path>'` (port not published; SSH-tunnelled probes only).
+**Reachability from this host:** `ssh jasonperlow@10.0.0.61 'curl http://localhost:42617/<path>'` (port not published; SSH-tunnelled probes only).
 **Probe date:** 2026-04-25.
 **Daemon uptime at probe time:** ~33 minutes (PID 7, container started 2026-04-24).
 **Pairing state:** `paired:false`, `require_pairing:false` — bearer auth is **optional** in this configuration. Every `/api/*` endpoint accepted unauthenticated requests in this walk.

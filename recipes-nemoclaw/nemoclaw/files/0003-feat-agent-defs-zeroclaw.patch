@@ -1,12 +1,12 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Jason Perlow <jperlow@nvidia.com>
+From: Jason Perlow <jperlow@gmail.com>
 Date: Wed, 16 Apr 2026 00:00:00 +0000
 Subject: [PATCH 3/3] feat(agents): add ZeroClaw agent definitions and runtime integration
 
 Register ZeroClaw as an agent runtime alongside Hermes. Add agent
 definitions, runtime detection, and CLI integration.
 
-Signed-off-by: Jason Perlow <jperlow@nvidia.com>
+Signed-off-by: Jason Perlow <jperlow@gmail.com>
 ---
 diff --git a/src/lib/agent-defs.ts b/src/lib/agent-defs.ts
 index 7e64a5a..5a91086 100644

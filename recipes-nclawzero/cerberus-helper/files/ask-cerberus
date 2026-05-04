@@ -12,7 +12,7 @@ set -eu
 CONF=/etc/nclawzero/cerberus.conf
 [ -r "$CONF" ] && . "$CONF"
 
-: "${CERBERUS_ENDPOINT:=http://192.168.207.96:8000}"
+: "${CERBERUS_ENDPOINT:=http://10.0.0.96:8000}"
 : "${CERBERUS_MODEL:=mistral-7b}"
 : "${CERBERUS_TIMEOUT:=60}"
 

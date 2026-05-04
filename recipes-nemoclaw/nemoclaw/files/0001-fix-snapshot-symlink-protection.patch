@@ -1,12 +1,12 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Jason Perlow <jperlow@nvidia.com>
+From: Jason Perlow <jperlow@gmail.com>
 Date: Wed, 16 Apr 2026 00:00:00 +0000
 Subject: [PATCH 1/3] fix(security): harden snapshot symlink protection
 
 Add assertNotSymlink() guard before cpSync to prevent symlink traversal
 attacks. Skip symlinks in collectFiles() directory walker.
 
-Signed-off-by: Jason Perlow <jperlow@nvidia.com>
+Signed-off-by: Jason Perlow <jperlow@gmail.com>
 ---
 diff --git a/nemoclaw/src/blueprint/snapshot.test.ts b/nemoclaw/src/blueprint/snapshot.test.ts
 index 276af42..b27706a 100644

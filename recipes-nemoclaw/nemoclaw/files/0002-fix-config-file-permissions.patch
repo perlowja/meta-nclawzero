@@ -1,12 +1,12 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Jason Perlow <jperlow@nvidia.com>
+From: Jason Perlow <jperlow@gmail.com>
 Date: Wed, 16 Apr 2026 00:00:00 +0000
 Subject: [PATCH 2/3] fix(security): enforce 0600 permissions on credential config
 
 Write config.json with mode 0o600 and belt-and-suspenders chmodSync.
 Prevents world-readable credential files.
 
-Signed-off-by: Jason Perlow <jperlow@nvidia.com>
+Signed-off-by: Jason Perlow <jperlow@gmail.com>
 ---
 diff --git a/nemoclaw/src/onboard/config.test.ts b/nemoclaw/src/onboard/config.test.ts
 index d098f05..befe57f 100644

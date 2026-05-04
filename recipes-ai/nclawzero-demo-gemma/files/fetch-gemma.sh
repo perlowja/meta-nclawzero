@@ -6,7 +6,7 @@ set -e
 MODEL_NAME="${MODEL_NAME:-gemma-4-E4B-it-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-/srv/nclaw/models}"
 MODEL_PATH="${MODEL_DIR}/${MODEL_NAME}"
-TYPHON_SRC="${TYPHON_SRC:-jasonperlow@192.168.207.61:/home/jasonperlow/models/gemma-4-E4B-Q4/${MODEL_NAME}}"
+TYPHON_SRC="${TYPHON_SRC:-jasonperlow@10.0.0.61:/home/jasonperlow/models/gemma-4-E4B-Q4/${MODEL_NAME}}"
 MODEL_URL="${MODEL_URL:-}"  # HF fallback; operator sets if TYPHON unreachable
 
 if [ -s "$MODEL_PATH" ]; then
