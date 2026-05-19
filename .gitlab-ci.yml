@@ -13,20 +13,13 @@ variables:
 
 lint:
   stage: lint
-  image: python:3.11-slim
-  before_script:
-    - pip install --quiet yamllint
+  tags: [argos, ncz-os]
   script:
-    - yamllint --no-warnings . || true
-    - grep -q '^BBFILE_COLLECTIONS' conf/layer.conf
-    - grep -q '^LAYERSERIES_COMPAT' conf/layer.conf
-    - grep -q '^BBFILE_PRIORITY' conf/layer.conf
-    - 'find . -name "*.bb" -print0 | xargs -0 -I FF sh -c ''grep -qE "^(LICENSE|inherit|require)" "FF" || (echo "MISSING LICENSE: FF" && exit 1)'''
+    - docker run --rm -v $CI_PROJECT_DIR:/src -w /src python:3.11-slim bash -c "pip install --quiet yamllint && yamllint --no-warnings . || true && grep -q '^BBFILE_COLLECTIONS' conf/layer.conf && grep -q '^LAYERSERIES_COMPAT' conf/layer.conf && grep -q '^BBFILE_PRIORITY' conf/layer.conf && find . -name '*.bb' -print0 | xargs -0 -I FF sh -c 'grep -qE \"^(LICENSE|inherit|require)\" \"FF\" || (echo \"MISSING LICENSE: FF\" && exit 1)'"
 
 check-layer:
   stage: check-layer
-  tags:
-    - yocto
+  tags: [argos, ncz-os]
   before_script:
     - mkdir -p /tmp/yocto-ci && cd /tmp/yocto-ci
     - if [ ! -d poky ]; then git clone --depth=1 --branch=$POKY_BRANCH git://git.yoctoproject.org/poky 2>&1 | tail -2; else cd poky && git fetch --depth=1 origin $POKY_BRANCH && git reset --hard origin/$POKY_BRANCH && cd ..; fi
